@@ -133,6 +133,15 @@ export function mapData(data: QueryData, schema: Malloy.Schema): Malloy.Data {
       }
       return {kind: 'boolean_cell', boolean_value: value};
     } else if (field.type.kind === 'number_type') {
+      // BigQuery returns BIGNUMERIC as strings to preserve precision
+      // beyond JavaScript's Number limit, so we need to parse them
+      if (typeof value === 'string') {
+        const parsed = Number.parseFloat(value);
+        if (Number.isNaN(parsed)) {
+          throw new Error(`Invalid number ${value}`);
+        }
+        return {kind: 'number_cell', number_value: parsed};
+      }
       if (typeof value !== 'number') {
         throw new Error(`Invalid number ${value}`);
       }
