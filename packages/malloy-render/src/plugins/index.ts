@@ -30,3 +30,14 @@ export {
 } from './big-value';
 
 export {ErrorPlugin} from './error/error-plugin';
+
+export {
+  ProgressBarPluginFactory,
+  type ProgressBarPluginInstance,
+  type ProgressBarSettings,
+  type ProgressBarFormat,
+  type ProgressBarVariant,
+  defaultProgressBarSettings,
+  progressBarSettingsSchema,
+  type IProgressBarSettingsSchema,
+} from './progress-bar';

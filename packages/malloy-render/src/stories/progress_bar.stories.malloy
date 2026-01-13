@@ -1,0 +1,225 @@
+// Progress Bar Stories for Storybook
+// Tests the # progress_bar tag for rendering horizontal progress bars
+
+// Basic percentage examples
+source: quota_data is duckdb.sql("""
+  SELECT
+    0.75 as quota_attainment,
+    0.45 as pipeline_coverage,
+    0.92 as completion_rate,
+    1.15 as over_target
+""") extend {
+
+  // Basic percentage (0-1 ratio)
+  #(story)
+  view: basic_percent is {
+    select:
+      # progress_bar
+      quota_attainment
+  }
+
+  // Multiple progress bars
+  #(story)
+  view: multiple_bars is {
+    select:
+      # progress_bar { label='Quota Attainment' }
+      quota_attainment
+      # progress_bar { label='Pipeline Coverage' }
+      pipeline_coverage
+      # progress_bar { label='Completion Rate' }
+      completion_rate
+  }
+
+  // Value overflow (> 100%)
+  #(story)
+  view: overflow_example is {
+    select:
+      # progress_bar { label='Over Target (115%)' }
+      over_target
+  }
+}
+
+// Count-based examples with max_field
+source: indexing_job is duckdb.sql("""
+  SELECT
+    4 as tables_indexed,
+    7 as tables_total,
+    12 as rows_processed,
+    50 as rows_total,
+    3 as joins_found,
+    5 as joins_expected
+""") extend {
+
+  // With max_field (count format)
+  #(story)
+  view: with_max_field is {
+    select:
+      # progress_bar { max_field=tables_total label='Tables Indexed' }
+      tables_indexed
+      # hidden
+      tables_total
+  }
+
+  // Multiple count-based bars
+  #(story)
+  view: multiple_counts is {
+    select:
+      # progress_bar { max_field=tables_total label='Tables' }
+      tables_indexed
+      # hidden
+      tables_total
+      # progress_bar { max_field=rows_total label='Rows Processed' }
+      rows_processed
+      # hidden
+      rows_total
+      # progress_bar { max_field=joins_expected label='Joins Analyzed' }
+      joins_found
+      # hidden
+      joins_expected
+  }
+}
+
+// Variant examples
+source: variant_data is duckdb.sql("""
+  SELECT
+    0.95 as on_track,
+    0.65 as at_risk,
+    0.30 as behind,
+    0.50 as inactive,
+    0.75 as default_style
+""") extend {
+
+  // Success variant (green)
+  #(story)
+  view: success_variant is {
+    select:
+      # progress_bar { variant='success' label='On Track' }
+      on_track
+  }
+
+  // Warning variant (yellow)
+  #(story)
+  view: warning_variant is {
+    select:
+      # progress_bar { variant='warning' label='At Risk' }
+      at_risk
+  }
+
+  // Error variant (red)
+  #(story)
+  view: error_variant is {
+    select:
+      # progress_bar { variant='error' label='Behind Schedule' }
+      behind
+  }
+
+  // Neutral variant (gray)
+  #(story)
+  view: neutral_variant is {
+    select:
+      # progress_bar { variant='neutral' label='Inactive' }
+      inactive
+  }
+
+  // All variants together
+  #(story)
+  view: all_variants is {
+    select:
+      # progress_bar { variant='default' label='Default (Blue)' }
+      default_style
+      # progress_bar { variant='success' label='Success (Green)' }
+      on_track
+      # progress_bar { variant='warning' label='Warning (Yellow)' }
+      at_risk
+      # progress_bar { variant='error' label='Error (Red)' }
+      behind
+      # progress_bar { variant='neutral' label='Neutral (Gray)' }
+      inactive
+  }
+}
+
+// Dynamic variant example
+source: dynamic_variant_data is duckdb.sql("""
+  SELECT
+    0.95 as progress,
+    'success' as status_color
+  UNION ALL
+  SELECT
+    0.60 as progress,
+    'warning' as status_color
+  UNION ALL
+  SELECT
+    0.25 as progress,
+    'error' as status_color
+""") extend {
+
+  // Dynamic variant from field
+  #(story)
+  view: dynamic_variant is {
+    select:
+      # progress_bar { variant_field=status_color label='Progress' }
+      progress
+      # hidden
+      status_color
+  }
+}
+
+// Format examples
+source: format_data is duckdb.sql("""
+  SELECT
+    0.75 as ratio_value,
+    4 as current_count,
+    7 as total_count,
+    1250000 as revenue,
+    1500000 as revenue_goal
+""") extend {
+
+  // Percent format (explicit)
+  #(story)
+  view: percent_format is {
+    select:
+      # progress_bar { format='percent' label='Completion' }
+      ratio_value
+  }
+
+  // Count format (explicit)
+  #(story)
+  view: count_format is {
+    select:
+      # progress_bar { max_field=total_count format='count' label='Items' }
+      current_count
+      # hidden
+      total_count
+  }
+
+  // Value format (shows raw value)
+  #(story)
+  view: value_format is {
+    select:
+      # progress_bar { max_field=revenue_goal format='value' label='Revenue' }
+      revenue
+      # hidden
+      revenue_goal
+  }
+}
+
+// Multiple rows example
+source: regional_sales is duckdb.sql("""
+  SELECT 'West' as region, 1200000 as revenue, 1500000 as quota
+  UNION ALL
+  SELECT 'East' as region, 800000 as revenue, 1000000 as quota
+  UNION ALL
+  SELECT 'Central' as region, 950000 as revenue, 900000 as quota
+""") extend {
+
+  // Progress bars for each region
+  #(story)
+  view: by_region is {
+    select:
+      region
+      # progress_bar { max_field=quota label='Revenue vs Quota' }
+      revenue
+      # hidden
+      quota
+  }
+}

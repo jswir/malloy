@@ -1,0 +1,83 @@
+/*
+ * Copyright Contributors to the Malloy project
+ * SPDX-License-Identifier: MIT
+ */
+
+/* Container */
+.malloy-progress-bar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-width: 120px;
+}
+
+/* Header with label and value */
+.malloy-progress-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.malloy-progress-bar-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--malloy-render--table-body-color, #374151);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.malloy-progress-bar-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--malloy-render--table-body-color, #374151);
+  white-space: nowrap;
+}
+
+/* Progress bar track */
+.malloy-progress-bar {
+  height: 8px;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: var(--progress-bg);
+}
+
+/* Progress bar fill */
+.malloy-progress-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--progress-fill);
+  transition: width 0.3s ease;
+}
+
+/* Variant: default (blue) */
+.malloy-progress-bar--default {
+  --progress-fill: #3b82f6;
+  --progress-bg: #dbeafe;
+}
+
+/* Variant: success (green) */
+.malloy-progress-bar--success {
+  --progress-fill: #22c55e;
+  --progress-bg: #dcfce7;
+}
+
+/* Variant: warning (yellow) */
+.malloy-progress-bar--warning {
+  --progress-fill: #eab308;
+  --progress-bg: #fef9c3;
+}
+
+/* Variant: error (red) */
+.malloy-progress-bar--error {
+  --progress-fill: #ef4444;
+  --progress-bg: #fee2e2;
+}
+
+/* Variant: neutral (gray) */
+.malloy-progress-bar--neutral {
+  --progress-fill: #6b7280;
+  --progress-bg: #f3f4f6;
+}
