@@ -20,6 +20,7 @@
       "packages/malloy-malloy-sql",
       "packages/malloy-render",
       "packages/malloy-syntax-highlight",
+      "packages/malloy-language-server",
       "test",
       "profiler"
     ]

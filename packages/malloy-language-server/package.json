@@ -1,0 +1,39 @@
+{
+  "name": "@malloydata/malloy-language-server",
+  "version": "0.0.336",
+  "description": "Language Server Protocol implementation for Malloy",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "malloy-lsp": "./dist/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "homepage": "https://github.com/malloydata/malloy#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/malloydata/malloy"
+  },
+  "scripts": {
+    "lint": "eslint '**/*.ts{,x}'",
+    "lint-fix": "eslint '**/*.ts{,x}' --fix",
+    "test": "jest --config=../../jest.config.js",
+    "build": "tsc --build",
+    "clean": "tsc --build --clean && rm -f tsconfig.tsbuildinfo",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@malloydata/malloy": "0.0.336",
+    "@malloydata/db-duckdb": "0.0.336",
+    "@malloydata/db-publisher": "0.0.336",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.11"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.js.map"
+  ]
+}
