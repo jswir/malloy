@@ -40,6 +40,184 @@ import type {
 import {DuckDBDialect, mkFieldDef, sqlKey} from '@malloydata/malloy';
 import {BaseConnection} from '@malloydata/malloy/connection';
 import {Client} from '@lancedb/arrow-flight-sql-client';
+import {Type} from 'apache-arrow';
+import type {Schema, Field, DataType, StructRow} from 'apache-arrow';
+
+// ----------------------------------------------------------------------------
+// Arrow value unwrapping functions (adapted from DuckDB WASM)
+// These convert Arrow values to vanilla JS using schema type information.
+// ----------------------------------------------------------------------------
+
+/**
+ * Convert an Arrow value to vanilla JS using the Arrow DataType.
+ */
+function unwrapValue(value: unknown, fieldType: DataType): unknown {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const children = (fieldType as any).children as Field[] | null;
+
+  switch (fieldType.typeId) {
+    case Type.Decimal:
+      return unwrapDecimal(value, fieldType);
+
+    case Type.Date:
+    case Type.Timestamp:
+      if (typeof value === 'number') {
+        return new Date(value);
+      }
+      if (value instanceof Date) {
+        return value;
+      }
+      return unwrapPrimitive(value);
+
+    case Type.List:
+    case Type.FixedSizeList:
+      if (children && children.length > 0) {
+        return unwrapArray(value, children[0].type);
+      }
+      return unwrapPrimitive(value);
+
+    case Type.Struct:
+      if (children && children.length > 0) {
+        return unwrapStruct(value, children);
+      }
+      return unwrapPrimitive(value);
+
+    case Type.Map:
+      if (children && children.length > 0) {
+        return unwrapArray(value, children[0].type);
+      }
+      return unwrapPrimitive(value);
+
+    default:
+      return unwrapPrimitive(value);
+  }
+}
+
+function unwrapDecimal(value: unknown, fieldType: DataType): number | string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const scale = (fieldType as any).scale ?? 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const obj = value as any;
+
+  if (!obj || !obj[Symbol.toPrimitive]) {
+    return value as number;
+  }
+
+  const raw = obj[Symbol.toPrimitive]();
+
+  if (typeof raw === 'bigint') {
+    const absRaw = raw < BigInt(0) ? -raw : raw;
+    if (absRaw > BigInt(Number.MAX_SAFE_INTEGER)) {
+      return formatBigDecimal(raw, scale);
+    }
+    if (scale > 0) {
+      return Number(raw) / 10 ** scale;
+    }
+    return Number(raw);
+  }
+
+  if (typeof raw === 'string') {
+    const absStr = raw.startsWith('-') ? raw.slice(1) : raw;
+    if (absStr.length > 15) {
+      return formatBigDecimalFromString(raw, scale);
+    }
+  }
+
+  const num = Number(raw);
+  return scale > 0 ? num / 10 ** scale : num;
+}
+
+function unwrapArray(value: unknown, elementType: DataType): unknown[] {
+  const arr = Array.isArray(value) ? value : [...(value as Iterable<unknown>)];
+  return arr.map(v => unwrapValue(v, elementType));
+}
+
+function unwrapStruct(
+  value: unknown,
+  children: Field[]
+): Record<string, unknown> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const obj = value as any;
+  const result: Record<string, unknown> = {};
+  for (const field of children) {
+    result[field.name] = unwrapValue(obj[field.name], field.type);
+  }
+  return result;
+}
+
+function unwrapPrimitive(value: unknown): unknown {
+  if (value instanceof Date) return value;
+  if (typeof value === 'bigint') return safeNumber(value);
+  if (typeof value !== 'object' || value === null) return value;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const obj = value as any;
+  if (obj[Symbol.toPrimitive]) {
+    return safeNumber(obj[Symbol.toPrimitive]());
+  }
+  return value;
+}
+
+function safeNumber(value: number | bigint | string): number | string {
+  if (typeof value === 'number') {
+    return value;
+  }
+  const num = Number(value);
+  if (
+    Number.isSafeInteger(num) ||
+    (Number.isFinite(num) && !Number.isInteger(num))
+  ) {
+    return num;
+  }
+  return String(value);
+}
+
+function formatBigDecimal(raw: bigint, scale: number): string {
+  const isNegative = raw < BigInt(0);
+  const str = (isNegative ? -raw : raw).toString();
+  return formatDecimalString(str, scale, isNegative);
+}
+
+function formatBigDecimalFromString(raw: string, scale: number): string {
+  const isNegative = raw.startsWith('-');
+  const str = isNegative ? raw.slice(1) : raw;
+  return formatDecimalString(str, scale, isNegative);
+}
+
+function formatDecimalString(
+  str: string,
+  scale: number,
+  isNegative: boolean
+): string {
+  let result: string;
+  if (scale <= 0) {
+    result = str;
+  } else if (scale >= str.length) {
+    result = '0.' + '0'.repeat(scale - str.length) + str;
+  } else {
+    result = str.slice(0, -scale) + '.' + str.slice(-scale);
+  }
+  return isNegative ? '-' + result : result;
+}
+
+/**
+ * Process a single Arrow result row into a Malloy QueryDataRow.
+ */
+function unwrapRow(row: StructRow, schema: Schema): QueryDataRow {
+  const json = row.toJSON();
+  const result: QueryDataRow = {};
+  for (const field of schema.fields) {
+    result[field.name] = unwrapValue(
+      json[field.name],
+      field.type
+    ) as QueryDataRow[string];
+  }
+  return result;
+}
 
 /**
  * SQL dialect used by the Flight SQL server.
@@ -208,8 +386,19 @@ export class FlightSQLConnection
       // Execute the query using Flight SQL
       const result = await client.query(sql);
 
-      // Get results as plain JS objects
-      const rows = (await result.collectToObjects()) as QueryDataRow[];
+      // Get Arrow batches and unwrap them with schema-aware processing
+      // This properly handles Decimal types with scale
+      const batches = await result.collectToArrow();
+      const rows: QueryDataRow[] = [];
+
+      for (const batch of batches) {
+        for (let i = 0; i < batch.numRows; i++) {
+          const row = batch.get(i);
+          if (row) {
+            rows.push(unwrapRow(row as unknown as StructRow, batch.schema));
+          }
+        }
+      }
 
       return {rows, totalRows: rows.length};
     } catch (error) {
