@@ -155,6 +155,11 @@ const config: Config = {
       displayName: 'db-mysql',
       roots: ['<rootDir>/packages/malloy-db-mysql/'],
     },
+    {
+      ...defaultConfig,
+      displayName: 'db-gizmosql',
+      roots: ['<rootDir>/packages/malloy-db-gizmosql/'],
+    },
   ],
 };
 

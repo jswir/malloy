@@ -1,0 +1,29 @@
+{
+  "name": "@malloydata/db-gizmosql",
+  "version": "0.0.325",
+  "license": "MIT",
+  "description": "GizmoSQL connection for Malloy (experimental). Connects to GizmoSQL servers via Arrow Flight SQL.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=20"
+  },
+  "homepage": "https://github.com/malloydata/malloy#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/malloydata/malloy"
+  },
+  "scripts": {
+    "lint": "eslint '**/*.ts{,x}'",
+    "lint-fix": "eslint '**/*.ts{,x}' --fix",
+    "test": "jest --config=../../jest.config.js",
+    "build": "tsc --build",
+    "clean": "tsc --build --clean",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@malloydata/malloy": "0.0.325",
+    "@lancedb/arrow-flight-sql-client": "^0.2.3",
+    "apache-arrow": "^17.0.0"
+  }
+}
