@@ -338,5 +338,66 @@ describe('custom error messages', () => {
         )
       );
     });
+
+    test('naming a run statement suggests query', () => {
+      expect(`
+        run: test_query is a -> {
+          group_by: astr
+          aggregate: acount is count()
+        }
+      `).toLogAtLeast(
+        errorMessage(
+          "'run:' statements cannot be named. Use 'query:' to define a named query (e.g., `query: test_query is ...`)"
+        )
+      );
+    });
+  });
+
+  describe('generic colon-keyword detection', () => {
+    test('dimension missing colon in source extend (existing case)', () => {
+      // The existing ErrorCase catches this in exploreStatement context
+      expect(
+        'source: x is a extend { dimension name is ai + 1 }'
+      ).toLogAtLeast(
+        errorMessage("Expected ':' following 'dimension'")
+      );
+    });
+
+    test('measure missing colon in source extend (existing case)', () => {
+      // The existing ErrorCase catches this in exploreStatement context
+      expect(
+        'source: x is a extend { measure total is ai.sum() }'
+      ).toLogAtLeast(
+        errorMessage("Expected ':' following 'measure'")
+      );
+    });
+
+    test('view missing colon in source extend', () => {
+      expect(`source: x is a extend {
+        view my_view is {
+          group_by: astr
+        }
+      }`).toLogAtLeast(
+        errorMessage("Expected ':' after 'view'. Did you mean 'view:'?")
+      );
+    });
+
+    test('query missing colon at top level', () => {
+      expect('query my_query is a -> { group_by: astr }').toLogAtLeast(
+        errorMessage("Expected ':' after 'query'. Did you mean 'query:'?")
+      );
+    });
+
+    test('run missing colon at top level', () => {
+      expect('run a -> { group_by: astr }').toLogAtLeast(
+        errorMessage("Expected ':' after 'run'. Did you mean 'run:'?")
+      );
+    });
+
+    test('aggregate missing colon in query', () => {
+      expect('run: a -> { aggregate flight_count }').toLogAtLeast(
+        errorMessage("Expected ':' following 'aggregate'")
+      );
+    });
   });
 });

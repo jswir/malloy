@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import type {ANTLRErrorListener, Token} from 'antlr4ts';
+import type {ANTLRErrorListener, Parser, Token} from 'antlr4ts';
 import {MalloyParser} from '../lib/Malloy/MalloyParser';
 import type {ErrorCase} from './custom-error-messages';
 import {checkCustomErrorMessage} from './custom-error-messages';
@@ -18,6 +18,128 @@ import type {
 import {makeLogMessage} from '../parse-log';
 import type {SourceInfo} from '../utils';
 import {rangeFromToken} from '../utils';
+
+// The base words (without colon) of all Malloy colon keywords.
+// When these appear as plain IDENTIFIERs, the user likely forgot the colon.
+// Words that also have bare keyword tokens (source, extend, internal, private,
+// public) won't appear as IDENTIFIER, so they're safe to include here.
+const COLON_KEYWORD_BASES = new Set([
+  'accept',
+  'aggregate',
+  'calculate',
+  'calculation',
+  'connection',
+  'declare',
+  'dimension',
+  'drill',
+  'except',
+  'group_by',
+  'grouped_by',
+  'having',
+  'index',
+  'internal',
+  'join_cross',
+  'join_one',
+  'join_many',
+  'limit',
+  'measure',
+  'nest',
+  'order_by',
+  'partition_by',
+  'primary_key',
+  'private',
+  'project',
+  'public',
+  'query',
+  'rename',
+  'run',
+  'sample',
+  'select',
+  'source',
+  'top',
+  'view',
+  'where',
+  'timezone',
+]);
+
+/**
+ * Generic fallback error detection for colon-keyword mistakes.
+ *
+ * Colon keywords (dimension:, measure:, query:, run:, etc.) are only
+ * recognized as keyword tokens when the colon is present. Without it,
+ * the word becomes a plain IDENTIFIER and ANTLR produces cryptic errors.
+ *
+ * This function detects three patterns:
+ *
+ * Pattern A: The offending symbol itself is an IDENTIFIER matching a
+ *   colon keyword. ANTLR couldn't start matching any grammar alternative.
+ *   Example: `source: x is a extend { dimension name is blah }`
+ *     → "dimension" is the offending symbol in exploreStatement
+ *
+ * Pattern B: The token BEFORE the offending symbol matches a colon keyword.
+ *   ANTLR consumed the keyword-word as an identifier (e.g. a field name)
+ *   and then choked on the next token.
+ *   Example: `dimension name is blah` → "dimension" consumed as fieldNameDef,
+ *     "name" is the offending symbol, IS follows.
+ *
+ * Pattern C: `run: <name> is ...` where the user tried to name a run
+ *   statement. The parser successfully consumed `run: <name>` as a valid
+ *   run statement (anonymous query reference), then IS appears at the
+ *   document level.
+ */
+function checkColonKeywordError(
+  parser: Parser,
+  offendingSymbol: Token | undefined
+): string {
+  if (!offendingSymbol) return '';
+  const offText = offendingSymbol.text?.toLowerCase() ?? '';
+
+  // Pattern A: The offending symbol itself is a colon-keyword word.
+  if (
+    offendingSymbol.type === MalloyParser.IDENTIFIER &&
+    COLON_KEYWORD_BASES.has(offText)
+  ) {
+    return `Expected ':' after '${offendingSymbol.text}'. Did you mean '${offendingSymbol.text}:'?`;
+  }
+
+  // Pattern B: The token BEFORE the offending symbol is a colon-keyword word,
+  // the offending symbol is an IDENTIFIER, and IS follows.
+  if (offendingSymbol.type === MalloyParser.IDENTIFIER) {
+    const prevIdx = offendingSymbol.tokenIndex - 1;
+    if (prevIdx >= 0) {
+      const prevToken = parser.inputStream.get(prevIdx);
+      const prevText = prevToken.text?.toLowerCase() ?? '';
+      if (
+        prevToken.type === MalloyParser.IDENTIFIER &&
+        COLON_KEYWORD_BASES.has(prevText)
+      ) {
+        const nextIdx = offendingSymbol.tokenIndex + 1;
+        const nextToken = parser.inputStream.get(nextIdx);
+        if (nextToken?.type === MalloyParser.IS) {
+          return `Expected ':' after '${prevToken.text}'. Did you mean '${prevToken.text}:'?`;
+        }
+      }
+    }
+  }
+
+  // Pattern C: run: <name> is ... (user tried to name a run statement)
+  if (offendingSymbol.type === MalloyParser.IS) {
+    const prevIdx = offendingSymbol.tokenIndex - 1;
+    const prev2Idx = offendingSymbol.tokenIndex - 2;
+    if (prevIdx >= 0 && prev2Idx >= 0) {
+      const prevToken = parser.inputStream.get(prevIdx);
+      const prev2Token = parser.inputStream.get(prev2Idx);
+      if (
+        prevToken.type === MalloyParser.IDENTIFIER &&
+        prev2Token.type === MalloyParser.RUN
+      ) {
+        return `'run:' statements cannot be named. Use 'query:' to define a named query (e.g., \`query: ${prevToken.text} is ...\`)`;
+      }
+    }
+  }
+
+  return '';
+}
 
 // A set of custom error messages and their triggering cases,
 // used for syntax error message re-writing when ANTLR would
@@ -271,11 +393,21 @@ export class MalloyParserErrorListener implements ANTLRErrorListener<Token> {
       ? rangeFromToken(this.sourceInfo, offendingSymbol)
       : {start: errAt, end: errAt};
 
-    const overrideMessage = checkCustomErrorMessage(
+    // First: try specific error cases (existing pattern-matched rewrites)
+    let overrideMessage = checkCustomErrorMessage(
       recognizer as MalloyParser,
       offendingSymbol,
       malloyCustomErrorCases
     );
+
+    // Second: try generic colon-keyword detection as a fallback
+    if (!overrideMessage) {
+      overrideMessage = checkColonKeywordError(
+        recognizer as MalloyParser,
+        offendingSymbol
+      );
+    }
+
     if (overrideMessage) {
       message = overrideMessage;
     }
