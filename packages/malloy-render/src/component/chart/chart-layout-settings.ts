@@ -241,9 +241,10 @@ export function getXAxisSettings({
   // TODO: shouldn't yTitleSize and yAxisWidth be subtracted from this chartWidth?
   const xSpacePerLabel = chartWidth / recordsToFit;
   if (xSpacePerLabel > xAxisHeight || xSpacePerLabel > maxStringSize) {
+    // Labels fit horizontally
     labelAngle = 0;
-    // Remove label limit; our vega specs should use labelOverlap setting to hide overlapping labels
-    labelLimit = 0;
+    // Set label limit based on available space per label, with some padding
+    labelLimit = xSpacePerLabel > maxStringSize ? 0 : xSpacePerLabel - 4;
     labelAlign = undefined;
 
     const horizontalLabelHeight = getTextHeightDOM(
@@ -251,6 +252,33 @@ export function getXAxisSettings({
       xLabelFontStyles
     );
     xAxisHeight = horizontalLabelHeight + xTitleOffset * 2 + xTitleSize;
+  } else {
+    // Check if labels fit at -45° angle
+    // At -45°, effective width per label ≈ labelHeight * √2, and effective height ≈ maxStringSize * sin(45°)
+    const diagonalWidth = maxStringSize * Math.cos(Math.PI / 4);
+    const horizontalLabelHeight = getTextHeightDOM(
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZgy',
+      xLabelFontStyles
+    );
+    const diagonalHeight =
+      maxStringSize * Math.sin(Math.PI / 4) + horizontalLabelHeight;
+
+    if (
+      xSpacePerLabel > horizontalLabelHeight * 1.2 &&
+      diagonalHeight < xAxisHeight * 1.2
+    ) {
+      labelAngle = -45;
+      labelAlign = 'right';
+      labelLimit = Math.min(
+        maxStringSize,
+        (xSpacePerLabel / Math.cos(Math.PI / 4)) * 1.5
+      );
+
+      xAxisHeight = Math.min(diagonalHeight, xAxisHeight) +
+        xTitleOffset * 2 +
+        xTitleSize +
+        xLabelPadding;
+    }
   }
 
   const titleArea = xAxisHeight - (xLabelPadding + labelLimit);
