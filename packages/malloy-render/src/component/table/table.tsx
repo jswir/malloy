@@ -11,6 +11,7 @@ import {
   onCleanup,
 } from 'solid-js';
 import {getRangeSize} from '../util';
+import {getFieldLabel} from '@/component/field-label-utils';
 import {getTableLayout, adjustLayoutForPivots} from './table-layout';
 import {
   createTableStore,
@@ -141,8 +142,7 @@ const HeaderField = (props: {field: Field; isPinned?: boolean}) => {
     (fieldLayout.depth > 0 && isLast) ||
     (fieldLayout.depth === 0 && fieldLayout.field.renderAs() === 'table');
 
-  const customLabel = props.field.tag.text('label');
-  const value = customLabel ?? props.field.name.replace(/_/g, '_\u200b');
+  const value = getFieldLabel(props.field).replace(/ /g, ' \u200b');
 
   return (
     <div

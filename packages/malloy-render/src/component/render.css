@@ -14,6 +14,18 @@
   --malloy-theme--table-pinned-border: 1px solid #daedf3;
   --malloy-theme--font-family: Inter, system-ui, sans-serif;
   --malloy-theme--background: white;
+  --malloy-theme--dashboard-bg: #f7f9fc;
+  --malloy-theme--dashboard-card-bg: white;
+  --malloy-theme--dashboard-card-radius: 8px;
+  --malloy-theme--dashboard-card-padding: 20px;
+  --malloy-theme--dashboard-title-size: 14px;
+  --malloy-theme--dashboard-title-weight: 500;
+  --malloy-theme--dashboard-title-color: #4a4d54;
+  --malloy-theme--dashboard-value-size: 28px;
+  --malloy-theme--chart-axis-label-color: #727883;
+  --malloy-theme--chart-axis-title-color: #727883;
+  --malloy-theme--chart-grid-color: #EBEDF0;
+  --malloy-theme--chart-background: white;
 
   font-family: var(--malloy-render--font-family);
   font-size: var(--malloy-render--table-font-size);
