@@ -51,6 +51,7 @@ import {createStaticReferenceLines} from '@/component/vega/static-reference-line
 type BarDataRecord = {
   x: string | number;
   y: number;
+  y2?: number;
   series: string;
 } & MalloyVegaDataRecord;
 
@@ -386,7 +387,9 @@ export function generateBarChartVegaSpecV2(
             },
             x2: settings.isStack
               ? {'scale': 'yscale', 'field': 'y1'}
-              : {'scale': 'yscale', 'value': 0},
+              : settings.yScaleType === 'log'
+                ? {scale: 'yscale', signal: "domain('yscale')[0]"}
+                : {'scale': 'yscale', 'value': 0},
             cornerRadiusTopRight: {value: isStacking ? 2 : 3},
             cornerRadiusBottomRight: {value: isStacking ? 2 : 3},
           }
@@ -401,7 +404,9 @@ export function generateBarChartVegaSpecV2(
             },
             y2: settings.isStack
               ? {'scale': 'yscale', 'field': 'y1'}
-              : {'scale': 'yscale', 'value': 0},
+              : settings.yScaleType === 'log'
+                ? {scale: 'yscale', signal: "domain('yscale')[0]"}
+                : {'scale': 'yscale', 'value': 0},
             cornerRadiusTopLeft: {value: isStacking ? 2 : 3},
             cornerRadiusTopRight: {value: isStacking ? 2 : 3},
           },
@@ -518,9 +523,9 @@ export function generateBarChartVegaSpecV2(
           {
             type: 'aggregate',
             groupby: ['x'],
-            fields: ['y2'],
-            ops: ['min'],
-            as: ['y2'],
+            fields: ['y2', 'y'],
+            ops: ['min', 'min'],
+            as: ['y2', 'y'],
           },
         ],
       }
@@ -551,6 +556,7 @@ export function generateBarChartVegaSpecV2(
           name: 'y2_points',
           type: 'symbol',
           from: {data: 'y2_values'},
+          interactive: true,
           zindex: 4,
           encode: {
             enter: {
@@ -558,6 +564,12 @@ export function generateBarChartVegaSpecV2(
               y: {scale: 'y2scale', field: 'y2'},
               fill: {value: '#E42C97'},
               size: {value: 30},
+            },
+            update: {
+              size: {value: 30},
+            },
+            hover: {
+              size: {value: 120},
             },
           },
         }
@@ -774,6 +786,7 @@ export function generateBarChartVegaSpecV2(
     padding: {
       ...chartSettings.padding,
       bottom: xAxisSettings.hidden ? 0 : xAxisSettings.height,
+      ...(hasY2 ? {right: Math.max(chartSettings.padding.right ?? 8, 60)} : {}),
     },
     scales: [
       {
@@ -789,15 +802,19 @@ export function generateBarChartVegaSpecV2(
       {
         name: 'yscale',
         ...(settings.yScaleType === 'log'
-          ? {type: 'log' as const}
+          ? {type: 'log' as const, zero: false}
           : settings.yScaleType === 'symlog'
             ? {type: 'symlog' as const}
             : {}),
         nice: true,
         range: (isHorizontal ? 'width' : 'height') as 'width' | 'height',
-        domain: settings.isStack
-          ? {data: 'values', field: 'y1'}
-          : chartSettings.yScale.domain ?? {data: 'values', field: 'y'},
+        // Log scale: ignore precomputed domain (which includes 0) and let Vega derive from data
+        domain:
+          settings.yScaleType === 'log'
+            ? {data: 'values', field: 'y'}
+            : settings.isStack
+              ? {data: 'values', field: 'y1'}
+              : chartSettings.yScale.domain ?? {data: 'values', field: 'y'},
       },
       {
         name: 'color',
@@ -1036,6 +1053,49 @@ export function generateBarChartVegaSpecV2(
     });
   }
 
+  // Dual-axis legend (when no series legend is already shown)
+  if (hasY2 && y2Field && !hasSeries && !legendHidden) {
+    const barLabel = getFieldLabel(yField);
+    const lineLabel = getFieldLabel(y2Field);
+    const y2LegendMaxChar = Math.max(barLabel.length, lineLabel.length);
+    const y2LegendSize = Math.min(
+      LEGEND_MAX,
+      chartSettings.totalWidth * LEGEND_PERC,
+      y2LegendMaxChar * 10 + 32
+    );
+
+    // Add right padding for the legend, but account for existing y2 axis padding
+    (spec.padding as VegaPadding).right =
+      ((spec.padding as VegaPadding).right || 8) + y2LegendSize;
+
+    // Use a custom mark-based legend via Vega's legend with a dedicated scale
+    // Create a simple ordinal scale for the dual-axis legend
+    spec.scales!.push({
+      name: 'dualAxisLegend',
+      type: 'ordinal',
+      domain: [barLabel, lineLabel],
+      range: ['#1877F2', '#E42C97'],
+    });
+
+    spec.legends!.push({
+      fill: 'dualAxisLegend',
+      orient: legendPosition,
+      labelLimit: y2LegendSize - 40,
+      padding: 8,
+      offset: 4,
+      encode: {
+        symbols: {
+          update: {
+            shape: [
+              {test: `datum.index === 1`, value: 'circle'},
+              {value: 'square'},
+            ],
+          },
+        },
+      },
+    });
+  }
+
   const mapMalloyDataToChartData: MalloyDataToChartDataHandler = data => {
     const getXValue = (row: RecordCell) => {
       const cell = row.column(xField.name);
@@ -1172,12 +1232,15 @@ export function generateBarChartVegaSpecV2(
       let records: BarDataRecord[] = [];
       const colorScale = view.scale('color');
       const formatY = (rec: BarDataRecord) => {
-        // If dimensional, use the first yField for formatting. Else the series value is the field path of the field to use
-        const field = isDimensionalSeries
-          ? yField
-          : explore.fieldAt(
-              seriesField ? Field.pathFromString(rec.series) : [rec.series]
-            );
+        // If dimensional series, use the first yField for formatting.
+        // If measure series, the series value is the field path of the field to use.
+        // If no series at all, use yField directly.
+        const field =
+          isDimensionalSeries || !hasSeries
+            ? yField
+            : explore.fieldAt(
+                seriesField ? Field.pathFromString(rec.series) : [rec.series]
+              );
 
         const value = rec.y;
         return field.isBasic()
@@ -1207,6 +1270,67 @@ export function generateBarChartVegaSpecV2(
             entryType: 'list-item',
           })),
         };
+
+        // Add y2 value to highlight tooltip for dual-axis charts
+        if (hasY2 && y2Field && records.length > 0 && records[0].y2 !== undefined) {
+          const y2Value = y2Field.isBasic()
+            ? renderNumericField(y2Field, records[0].y2)
+            : String(records[0].y2);
+          tooltipData.entries.push({
+            label: getFieldLabel(y2Field),
+            value: y2Value,
+            highlight: false,
+            color: '#E42C97',
+            entryType: 'list-item',
+          });
+        }
+      }
+
+      // Tooltip for y2 points (dual-axis line)
+      if (hasY2 && y2Field && getMarkName(item) === 'y2_points') {
+        const itemData = item.datum;
+        const title = xIsDateorTime
+          ? renderDateTimeField(xField, new Date(itemData.x), {
+              isDate: xField.isDate(),
+              timeframe: xField.timeframe,
+            })
+          : itemData.x;
+
+        const value = y2Field.isBasic()
+          ? renderNumericField(y2Field, itemData.y2)
+          : String(itemData.y2);
+
+        const entries: ChartTooltipEntry['entries'] = [];
+
+        // Include bar (y) value
+        if (itemData.y !== undefined) {
+          const barValue = yField.isBasic()
+            ? renderNumericField(yField, itemData.y)
+            : String(itemData.y);
+          entries.push({
+            label: getFieldLabel(yField),
+            value: barValue,
+            highlight: false,
+            color: colorScale(getFieldLabel(yField)),
+            entryType: 'list-item',
+          });
+        }
+
+        // Line (y2) value - highlighted
+        entries.push({
+          label: getFieldLabel(y2Field),
+          value,
+          highlight: true,
+          color: '#E42C97',
+          entryType: 'list-item',
+        });
+
+        tooltipData = {
+          title: [title],
+          entries,
+        };
+        tooltipEntryMemo.set(item, tooltipData);
+        return tooltipData;
       }
 
       // Tooltip records for the actual bars
@@ -1234,6 +1358,20 @@ export function generateBarChartVegaSpecV2(
             };
           }),
         };
+
+        // Add y2 value to bar tooltip for dual-axis charts
+        if (hasY2 && y2Field && itemData.y2 !== undefined) {
+          const y2Value = y2Field.isBasic()
+            ? renderNumericField(y2Field, itemData.y2)
+            : String(itemData.y2);
+          tooltipData.entries.push({
+            label: getFieldLabel(y2Field),
+            value: y2Value,
+            highlight: false,
+            color: '#E42C97',
+            entryType: 'list-item',
+          });
+        }
       }
 
       const highlightedRecords = records.filter(
