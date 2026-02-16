@@ -495,7 +495,7 @@ const MalloyTableRoot = (_props: {
           const maybeSize = tableCtx.store.columnWidths[key];
           if (shouldFillWidth) return maybeSize ? maybeSize + 'px' : 'auto';
           return `minmax(${
-            maybeSize ? maybeSize + 'px' : 'auto'
+            maybeSize ? maybeSize + 'px' : '64px'
           }, max-content)`;
         })
         .join(' ');
@@ -797,6 +797,7 @@ const MalloyTableRoot = (_props: {
               {virtualRow => (
                 <div
                   class="table-row"
+                  classList={{'row-even': virtualRow.index % 2 === 0}}
                   data-index={virtualRow.index}
                   data-row={JSON.stringify(getRowPath(virtualRow.index))}
                   ref={el =>
@@ -839,7 +840,7 @@ const MalloyTableRoot = (_props: {
         {/* rows */}
         <For each={data()}>
           {(row, idx) => (
-            <div class="table-row" data-row={JSON.stringify(getRowPath(idx()))}>
+            <div class="table-row" classList={{'row-even': idx() % 2 === 0}} data-row={JSON.stringify(getRowPath(idx()))}>
               <For each={visibleFields()}>
                 {field => (
                   <TableField

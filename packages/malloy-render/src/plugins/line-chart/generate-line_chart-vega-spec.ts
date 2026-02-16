@@ -796,12 +796,16 @@ export function generateLineChartVegaSpecV2(
                 labels: {
                   enter: {
                     text: {
-                      signal: `renderMalloyTime(malloyExplore, '${xFieldPath}', datum.value, '${extractFormat}')`,
+                      signal: extractFormat
+                        ? `renderMalloyTime(malloyExplore, '${xFieldPath}', datum.value, '${extractFormat}')`
+                        : `renderMalloyTime(malloyExplore, '${xFieldPath}', datum.value)`,
                     },
                   },
                   update: {
                     text: {
-                      signal: `renderMalloyTime(malloyExplore, '${xFieldPath}', datum.value, '${extractFormat}')`,
+                      signal: extractFormat
+                        ? `renderMalloyTime(malloyExplore, '${xFieldPath}', datum.value, '${extractFormat}')`
+                        : `renderMalloyTime(malloyExplore, '${xFieldPath}', datum.value)`,
                     },
                   },
                 },

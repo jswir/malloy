@@ -222,15 +222,13 @@ export function getXAxisSettings({
   const maxStringSize = getTextWidthDOM(maxString, xLabelFontStyles);
   const ellipsesSize = getTextWidthDOM('...', xLabelFontStyles);
 
-  const X_AXIS_THRESHOLD = 0.35;
-  const plotHeight = chartHeight - 2 * xTitleOffset - xTitleSize - ellipsesSize;
+  const X_AXIS_THRESHOLD = xField.isTime() ? 0.45 : 0.35;
+  const plotHeight = chartHeight - xTitleOffset - xTitleSize;
 
   let labelHeight = Math.min(maxStringSize, X_AXIS_THRESHOLD * plotHeight);
   labelLimit = labelHeight;
-  if (labelHeight < maxStringSize) {
-    labelHeight += ellipsesSize;
-  }
-  xAxisHeight = labelHeight + xTitleOffset * 2 + xTitleSize + xLabelPadding;
+  // Vega handles ellipsis within labelLimit, so no extra space needed for truncated labels
+  xAxisHeight = labelHeight + xTitleOffset + xTitleSize + xLabelPadding;
 
   // TODO: improve this, this logic exists in more detail in generate vega spec. this is a hacky partial solution for now :/
   const uniqueValuesCt = xField.valueSet.size;
@@ -250,7 +248,38 @@ export function getXAxisSettings({
       'ABCDEFGHIJKLMNOPQRSTUVWXYZgy',
       xLabelFontStyles
     );
-    xAxisHeight = horizontalLabelHeight + xTitleOffset * 2 + xTitleSize;
+    xAxisHeight = horizontalLabelHeight + xTitleOffset + xTitleSize;
+  } else {
+    // Check if labels fit at -45° angle
+    // At -45°, effective width per label ≈ labelHeight * √2, and effective height ≈ maxStringSize * sin(45°)
+    const diagonalWidth = maxStringSize * Math.cos(Math.PI / 4);
+    const horizontalLabelHeight = getTextHeightDOM(
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZgy',
+      xLabelFontStyles
+    );
+    const diagonalHeight =
+      maxStringSize * Math.sin(Math.PI / 4) + horizontalLabelHeight;
+
+    if (
+      xSpacePerLabel > horizontalLabelHeight * 1.2 &&
+      diagonalHeight < xAxisHeight * 1.2
+    ) {
+      labelAngle = -45;
+      labelAlign = 'right';
+      // For temporal fields, use full label width since Vega's labelOverlap:'greedy'
+      // will hide labels that don't fit, rather than truncating all labels
+      labelLimit = xField.isTime()
+        ? maxStringSize
+        : Math.min(
+            maxStringSize,
+            (xSpacePerLabel / Math.cos(Math.PI / 4)) * 1.5
+          );
+
+      xAxisHeight = Math.min(diagonalHeight, xAxisHeight) +
+        xTitleOffset +
+        xTitleSize +
+        xLabelPadding;
+    }
   }
 
   const titleArea = xAxisHeight - (xLabelPadding + labelLimit);

@@ -1,14 +1,16 @@
 .malloy-render {
-  --malloy-theme--table-row-height: 28px;
-  --malloy-theme--table-font-size: 12px;
-  --malloy-theme--table-header-color: #5d626b;
-  --malloy-theme--table-header-weight: bold;
-  --malloy-theme--table-body-color: #727883;
+  --malloy-theme--table-row-height: 32px;
+  --malloy-theme--table-font-size: 13px;
+  --malloy-theme--table-header-color: #374151;
+  --malloy-theme--table-header-weight: 600;
+  --malloy-theme--table-body-color: #4b5563;
   --malloy-theme--table-body-weight: 400;
-  --malloy-theme--table-border: 1px solid #e5e7eb;
+  --malloy-theme--table-border: 1px solid #eef0f2;
   --malloy-theme--table-background: white;
-  --malloy-theme--table-gutter-size: 8px;
-  --malloy-theme--table-pinned-background: #f5fafc;
+  --malloy-theme--table-gutter-size: 10px;
+  --malloy-theme--table-pinned-background: #f5f7fa;
+  --malloy-theme--table-header-background: #f8f9fb;
+  --malloy-theme--table-row-alternate-background: #f9fafb;
   --malloy-theme--table-pinned-border: 1px solid #daedf3;
   --malloy-theme--font-family: Inter, system-ui, sans-serif;
   --malloy-theme--background: white;

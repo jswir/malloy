@@ -145,42 +145,42 @@ export function MalloyRenderInner(props: {
 
   const metadata = createMemo(() => {
     // TODO Do we even need this anymore...
-    const resultMetadata = getResultMetadata(rootCell().field, {
-      renderFieldMetadata: props.renderFieldMetadata,
-      getVegaConfigOverride: props.vegaConfigOverride,
-      parentSize: {
-        width: parentSize().width - CHART_SIZE_BUFFER,
-        height: parentSize().height - CHART_SIZE_BUFFER,
-      },
-      useVegaInterpreter: props.useVegaInterpreter,
-    });
-
-    // Collect style overrides from plugins
-    const styleOverrides: Record<string, string> = {};
-    props.renderFieldMetadata?.getAllFields().forEach(field => {
-      const plugins =
-        props.renderFieldMetadata?.getPluginsForField(field.key) ?? [];
-      plugins.forEach(plugin => {
-        plugin.beforeRender?.(resultMetadata, {
-          renderFieldMetadata: props.renderFieldMetadata,
-          getVegaConfigOverride: props.vegaConfigOverride,
-          parentSize: {
-            width: parentSize().width - CHART_SIZE_BUFFER,
-            height: parentSize().height - CHART_SIZE_BUFFER,
-          },
-          useVegaInterpreter: props.useVegaInterpreter,
-        });
-
-        // Collect style overrides from plugin
-        if (plugin.getStyleOverrides) {
-          Object.assign(styleOverrides, plugin.getStyleOverrides());
-        }
+      const resultMetadata = getResultMetadata(rootCell().field, {
+        renderFieldMetadata: props.renderFieldMetadata,
+        getVegaConfigOverride: props.vegaConfigOverride,
+        parentSize: {
+          width: parentSize().width - CHART_SIZE_BUFFER,
+          height: parentSize().height - CHART_SIZE_BUFFER,
+        },
+        useVegaInterpreter: props.useVegaInterpreter,
       });
-    });
 
-    resultMetadata.styleOverrides = styleOverrides;
+      // Collect style overrides from plugins
+      const styleOverrides: Record<string, string> = {};
+      props.renderFieldMetadata?.getAllFields().forEach(field => {
+        const plugins =
+          props.renderFieldMetadata?.getPluginsForField(field.key) ?? [];
+        plugins.forEach(plugin => {
+          plugin.beforeRender?.(resultMetadata, {
+            renderFieldMetadata: props.renderFieldMetadata,
+            getVegaConfigOverride: props.vegaConfigOverride,
+            parentSize: {
+              width: parentSize().width - CHART_SIZE_BUFFER,
+              height: parentSize().height - CHART_SIZE_BUFFER,
+            },
+            useVegaInterpreter: props.useVegaInterpreter,
+          });
 
-    return resultMetadata;
+          // Collect style overrides from plugin
+          if (plugin.getStyleOverrides) {
+            Object.assign(styleOverrides, plugin.getStyleOverrides());
+          }
+        });
+      });
+
+      resultMetadata.styleOverrides = styleOverrides;
+
+      return resultMetadata;
   });
 
   // hack to block resize events when we're in fixed mode.
@@ -331,6 +331,16 @@ function generateThemeStyle(modelTheme?: Tag, localTheme?: Tag) {
     localTheme,
     modelTheme
   );
+  const tableHeaderBackground = getThemeValue(
+    'tableHeaderBackground',
+    localTheme,
+    modelTheme
+  );
+  const tableRowAlternateBackground = getThemeValue(
+    'tableRowAlternateBackground',
+    localTheme,
+    modelTheme
+  );
   const fontFamily = getThemeValue('fontFamily', localTheme, modelTheme);
   const background = getThemeValue('background', localTheme, modelTheme);
 
@@ -347,6 +357,8 @@ function generateThemeStyle(modelTheme?: Tag, localTheme?: Tag) {
     --malloy-render--table-gutter-size: ${tableGutterSize};
     --malloy-render--table-pinned-background: ${tablePinnedBackground};
     --malloy-render--table-pinned-border: ${tablePinnedBorder};
+    --malloy-render--table-header-background: ${tableHeaderBackground};
+    --malloy-render--table-row-alternate-background: ${tableRowAlternateBackground};
     --malloy-render--background: ${background};
 
 `;
