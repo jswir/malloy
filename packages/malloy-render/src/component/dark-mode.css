@@ -1,5 +1,6 @@
 /* Dark mode theme for Malloy Renderer */
 /* Apply via: .malloy-dark .malloy-render or .malloy-render.malloy-dark */
+/* Values must match DARK_THEME in theme.ts — that constant is the source of truth */
 
 .malloy-dark .malloy-render,
 .malloy-render.malloy-dark {
@@ -30,6 +31,14 @@
   --malloy-theme--chart-axis-label-color: #9da1aa;
   --malloy-theme--chart-axis-title-color: #9da1aa;
   --malloy-theme--chart-grid-color: #3a3d44;
+
+  /* Big Value */
+  --malloy-theme--big-value-card-bg: #1e1e20;
+  --malloy-theme--big-value-card-border: #3a3d44;
+  --malloy-theme--big-value-label-color: #9da1aa;
+  --malloy-theme--big-value-delta-positive: #34d399;
+  --malloy-theme--big-value-delta-negative: #f87171;
+  --malloy-theme--big-value-delta-neutral: #6b7280;
 }
 
 /* Override dashboard-specific hardcoded values in dark mode */
@@ -64,6 +73,31 @@
     rgba(60, 63, 70, 0.5) 0px 0px 0px 1px,
     rgba(0, 0, 0, 0.3) 0px 4px 6px -1px,
     rgba(0, 0, 0, 0.2) 0px 2px 4px -2px;
+}
+
+/* Big Value card dark mode shadows */
+.malloy-dark .malloy-big-value-card,
+.malloy-render.malloy-dark .malloy-big-value-card {
+  box-shadow:
+    rgba(0, 0, 0, 0.3) 0px 0px 0px 0px,
+    rgba(60, 63, 70, 0.5) 0px 0px 0px 1px,
+    rgba(0, 0, 0, 0.2) 0px 1px 3px 0px,
+    rgba(0, 0, 0, 0.2) 0px 1px 2px -1px;
+}
+
+/* Big Value tooltip icon dark mode */
+.malloy-dark .malloy-big-value-tooltip-icon,
+.malloy-render.malloy-dark .malloy-big-value-tooltip-icon {
+  border-color: #6b7280;
+  color: #6b7280;
+}
+
+/* Big Value error state dark mode */
+.malloy-dark .malloy-big-value-error,
+.malloy-render.malloy-dark .malloy-big-value-error {
+  background: #3b1111;
+  border-color: #7f1d1d;
+  color: #f87171;
 }
 
 /* Dark mode scrollbar */

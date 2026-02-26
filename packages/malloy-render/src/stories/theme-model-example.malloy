@@ -1,0 +1,61 @@
+// Example: Setting a dark theme at the model level so ALL views inherit it.
+// Use `## theme.*` (double-hash) to apply theme properties to every view in this source.
+// Individual views can still override with `# theme.*` (single-hash).
+
+## theme.mode=dark
+source: products is duckdb.table("static/data/products.parquet") extend {
+
+  // 1. Table — inherits dark mode from the model-level tag above
+  view: sales_table is {
+    group_by: category, brand
+    aggregate:
+      product_count is count()
+      total_revenue is retail_price.sum()
+      avg_price is retail_price.avg()
+    order_by: total_revenue desc
+    limit: 20
+  }
+
+  // 2. Bar chart — also dark, no extra tag needed
+  # bar_chart
+  view: revenue_by_category is {
+    group_by: category
+    aggregate:
+      total_revenue is retail_price.sum()
+      product_count is count()
+    order_by: total_revenue desc
+  }
+
+  // 3. Line chart — dark mode inherited
+  # line_chart
+  view: revenue_over_time is {
+    group_by: created_at.year
+    aggregate:
+      total_revenue is retail_price.sum()
+      avg_price is retail_price.avg()
+    order_by: created_at.year
+  }
+
+  // 4. Dashboard with nested charts — everything dark
+  # dashboard
+  view: category_overview is {
+    group_by: category
+    aggregate:
+      avg_price is retail_price.avg()
+      total_revenue is retail_price.sum()
+      product_count is count()
+    nest:
+      top_brands is {
+        group_by: brand
+        aggregate: total_revenue is retail_price.sum()
+        limit: 5
+      }
+  }
+
+  // 5. Override: this view forces light mode even though the model is dark
+  # theme.mode=light
+  view: light_override_table is {
+    select: *
+    limit: 50
+  }
+}

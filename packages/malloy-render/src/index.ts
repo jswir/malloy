@@ -34,7 +34,12 @@ export type {
   RenderPluginInstance,
 } from '@/api/plugin-types';
 export {isCoreVizPluginInstance} from '@/api/plugin-types';
-export type {MalloyRendererOptions, RenderFieldMetadata} from '@/api/types';
+export type {
+  MalloyRendererOptions,
+  RenderFieldMetadata,
+  MalloyTheme,
+  ThemePreset,
+} from '@/api/types';
 export type * from '@/api/json-schema-types';
 export type {
   DrillData,

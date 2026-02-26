@@ -35,12 +35,15 @@ import {getDataTree} from '../data_tree';
 import {ResultContext} from './result-context';
 import {ErrorMessage} from './error-message/error-message';
 import type {RenderFieldMetadata} from '../render-field-metadata';
+import {THEME_CSS_PROPERTIES, toKebabCase} from './theme';
+import type {MalloyTheme} from './theme';
 
 export type MalloyRenderProps = {
   result?: Malloy.Result;
   element: HTMLElement;
   scrollEl?: HTMLElement;
   modalElement?: HTMLElement;
+  theme?: MalloyTheme;
   onClick?: (payload: MalloyClickEventPayload) => void;
   onDrill?: (drillData: DrillData) => void;
   onError?: (error: Error) => void;
@@ -114,6 +117,7 @@ export function MalloyRender(props: MalloyRenderProps) {
             result={props.result!}
             element={props.element}
             scrollEl={props.scrollEl}
+            theme={props.theme}
             vegaConfigOverride={props.vegaConfigOverride}
             renderFieldMetadata={props.renderFieldMetadata}
             useVegaInterpreter={props.useVegaInterpreter}
@@ -129,6 +133,7 @@ export function MalloyRenderInner(props: {
   result: Malloy.Result;
   element: HTMLElement;
   scrollEl?: HTMLElement;
+  theme?: MalloyTheme;
   vegaConfigOverride?: VegaConfigHandler;
   renderFieldMetadata: RenderFieldMetadata;
   useVegaInterpreter?: boolean;
@@ -145,6 +150,31 @@ export function MalloyRenderInner(props: {
     return getDataTree(props.result, props.renderFieldMetadata);
   });
 
+  const tags = () => {
+    const modelTag = rootCell().field.modelTag;
+    const resultTag = rootCell().field.tag;
+    const modelTheme = modelTag.tag('theme');
+    const localTheme = resultTag.tag('theme');
+    return {
+      modelTag,
+      resultTag,
+      modelTheme,
+      localTheme,
+    };
+  };
+
+  const isDarkMode = () => {
+    const localMode = tags().localTheme?.text('mode');
+    const modelMode = tags().modelTheme?.text('mode');
+    const jsMode = props.theme?.mode;
+    const mode = localMode ?? modelMode ?? jsMode ?? 'auto';
+
+    if (mode === 'dark') return true;
+    if (mode === 'light') return false;
+    // mode === 'auto': detect system preference
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+  };
+
   const metadata = createMemo(() => {
     // TODO Do we even need this anymore...
     const resultMetadata = getResultMetadata(rootCell().field, {
@@ -156,6 +186,20 @@ export function MalloyRenderInner(props: {
       },
       useVegaInterpreter: props.useVegaInterpreter,
     });
+
+    // Set theme info on metadata so plugins can access it
+    resultMetadata.isDarkMode = isDarkMode();
+    const modelThemeTag = tags().modelTheme;
+    const colorScheme =
+      props.theme?.colorScheme ?? modelThemeTag?.text('colorScheme');
+    const colors =
+      props.theme?.colors ?? modelThemeTag?.textArray('colors');
+    if (colorScheme || colors) {
+      resultMetadata.themeColors = {
+        colorScheme: colorScheme ?? undefined,
+        colors: colors ?? undefined,
+      };
+    }
 
     // Collect style overrides from plugins
     const styleOverrides: Record<string, string> = {};
@@ -198,27 +242,12 @@ export function MalloyRenderInner(props: {
     });
   };
 
-  const tags = () => {
-    const modelTag = rootCell().field.modelTag;
-    const resultTag = rootCell().field.tag;
-    const modelTheme = modelTag.tag('theme');
-    const localTheme = resultTag.tag('theme');
-    return {
-      modelTag,
-      resultTag,
-      modelTheme,
-      localTheme,
-    };
-  };
-
-  const isDarkMode = () => {
-    const modelMode = tags().modelTheme?.text('mode');
-    const localMode = tags().localTheme?.text('mode');
-    return localMode === 'dark' || modelMode === 'dark';
-  };
-
   const style = () => {
-    const baseStyles = generateThemeStyle(tags().modelTheme, tags().localTheme);
+    const baseStyles = generateThemeStyle(
+      tags().modelTheme,
+      tags().localTheme,
+      props.theme
+    );
     const overrideStyles = Object.entries(metadata().styleOverrides)
       .map(([key, value]) => `${key}: ${value};`)
       .join('\n');
@@ -276,171 +305,22 @@ export function MalloyRenderInner(props: {
   );
 }
 
-// Get the first valid theme value or fallback to CSS variable
-function getThemeValue(prop: string, ...themes: Array<Tag | undefined>) {
-  let value: string | undefined;
-  for (const theme of themes) {
-    value = theme?.text(prop);
-    if (typeof value !== 'undefined') break;
-  }
-  // If no theme overrides, convert prop name from camelCase to kebab and pull from --malloy-theme-- variable
-  return (
-    value ??
-    `var(--malloy-theme--${prop
-      .replace(/([a-z])([A-Z])/g, '$1-$2')
-      .toLowerCase()})`
-  );
-}
-
-function generateThemeStyle(modelTheme?: Tag, localTheme?: Tag) {
-  const tableRowHeight = getThemeValue(
-    'tableRowHeight',
-    localTheme,
-    modelTheme
-  );
-  const tableBodyColor = getThemeValue(
-    'tableBodyColor',
-    localTheme,
-    modelTheme
-  );
-  const tableFontSize = getThemeValue('tableFontSize', localTheme, modelTheme);
-  const tableHeaderColor = getThemeValue(
-    'tableHeaderColor',
-    localTheme,
-    modelTheme
-  );
-  const tableHeaderWeight = getThemeValue(
-    'tableHeaderWeight',
-    localTheme,
-    modelTheme
-  );
-  const tableBodyWeight = getThemeValue(
-    'tableBodyWeight',
-    localTheme,
-    modelTheme
-  );
-  const tableBorder = getThemeValue('tableBorder', localTheme, modelTheme);
-  const tableBackground = getThemeValue(
-    'tableBackground',
-    localTheme,
-    modelTheme
-  );
-  const tableGutterSize = getThemeValue(
-    'tableGutterSize',
-    localTheme,
-    modelTheme
-  );
-  const tablePinnedBackground = getThemeValue(
-    'tablePinnedBackground',
-    localTheme,
-    modelTheme
-  );
-  const tablePinnedBorder = getThemeValue(
-    'tablePinnedBorder',
-    localTheme,
-    modelTheme
-  );
-  const tableHeaderBackground = getThemeValue(
-    'tableHeaderBackground',
-    localTheme,
-    modelTheme
-  );
-  const tableRowAlternateBackground = getThemeValue(
-    'tableRowAlternateBackground',
-    localTheme,
-    modelTheme
-  );
-  const fontFamily = getThemeValue('fontFamily', localTheme, modelTheme);
-  const background = getThemeValue('background', localTheme, modelTheme);
-
-  // Dashboard theme variables
-  const dashboardBg = getThemeValue('dashboardBg', localTheme, modelTheme);
-  const dashboardCardBg = getThemeValue(
-    'dashboardCardBg',
-    localTheme,
-    modelTheme
-  );
-  const dashboardCardRadius = getThemeValue(
-    'dashboardCardRadius',
-    localTheme,
-    modelTheme
-  );
-  const dashboardCardPadding = getThemeValue(
-    'dashboardCardPadding',
-    localTheme,
-    modelTheme
-  );
-  const dashboardTitleSize = getThemeValue(
-    'dashboardTitleSize',
-    localTheme,
-    modelTheme
-  );
-  const dashboardTitleWeight = getThemeValue(
-    'dashboardTitleWeight',
-    localTheme,
-    modelTheme
-  );
-  const dashboardTitleColor = getThemeValue(
-    'dashboardTitleColor',
-    localTheme,
-    modelTheme
-  );
-  const dashboardValueSize = getThemeValue(
-    'dashboardValueSize',
-    localTheme,
-    modelTheme
-  );
-
-  // Chart theme variables
-  const chartAxisLabelColor = getThemeValue(
-    'chartAxisLabelColor',
-    localTheme,
-    modelTheme
-  );
-  const chartAxisTitleColor = getThemeValue(
-    'chartAxisTitleColor',
-    localTheme,
-    modelTheme
-  );
-  const chartGridColor = getThemeValue(
-    'chartGridColor',
-    localTheme,
-    modelTheme
-  );
-  const chartBackground = getThemeValue(
-    'chartBackground',
-    localTheme,
-    modelTheme
-  );
-
-  const css = `
-    --malloy-render--table-row-height: ${tableRowHeight};
-    --malloy-render--table-body-color: ${tableBodyColor};
-    --malloy-render--table-font-size: ${tableFontSize};
-    --malloy-render--font-family: ${fontFamily};
-    --malloy-render--table-header-color: ${tableHeaderColor};
-    --malloy-render--table-header-weight: ${tableHeaderWeight};
-    --malloy-render--table-body-weight: ${tableBodyWeight};
-    --malloy-render--table-border: ${tableBorder};
-    --malloy-render--table-background: ${tableBackground};
-    --malloy-render--table-gutter-size: ${tableGutterSize};
-    --malloy-render--table-pinned-background: ${tablePinnedBackground};
-    --malloy-render--table-pinned-border: ${tablePinnedBorder};
-    --malloy-render--table-header-background: ${tableHeaderBackground};
-    --malloy-render--table-row-alternate-background: ${tableRowAlternateBackground};
-    --malloy-render--background: ${background};
-    --malloy-render--dashboard-bg: ${dashboardBg};
-    --malloy-render--dashboard-card-bg: ${dashboardCardBg};
-    --malloy-render--dashboard-card-radius: ${dashboardCardRadius};
-    --malloy-render--dashboard-card-padding: ${dashboardCardPadding};
-    --malloy-render--dashboard-title-size: ${dashboardTitleSize};
-    --malloy-render--dashboard-title-weight: ${dashboardTitleWeight};
-    --malloy-render--dashboard-title-color: ${dashboardTitleColor};
-    --malloy-render--dashboard-value-size: ${dashboardValueSize};
-    --malloy-render--chart-axis-label-color: ${chartAxisLabelColor};
-    --malloy-render--chart-axis-title-color: ${chartAxisTitleColor};
-    --malloy-render--chart-grid-color: ${chartGridColor};
-    --malloy-render--chart-background: ${chartBackground};
-`;
-  return css;
+/**
+ * Generate inline CSS style string that sets --malloy-render--* variables.
+ * Priority: local tag > model tag > JS theme object > CSS variable default.
+ */
+function generateThemeStyle(
+  modelTheme?: Tag,
+  localTheme?: Tag,
+  jsTheme?: MalloyTheme
+) {
+  return THEME_CSS_PROPERTIES.map(prop => {
+    const kebab = toKebabCase(prop);
+    const value =
+      localTheme?.text(prop) ??
+      modelTheme?.text(prop) ??
+      (jsTheme?.[prop] as string | undefined) ??
+      `var(--malloy-theme--${kebab})`;
+    return `--malloy-render--${kebab}: ${value};`;
+  }).join('\n');
 }

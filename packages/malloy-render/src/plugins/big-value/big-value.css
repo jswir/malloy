@@ -28,8 +28,8 @@
   display: flex;
   flex-direction: column;
   padding: 20px 24px;
-  background: var(--malloy-render--background, white);
-  border: 1px solid #e5e7eb;
+  background: var(--malloy-render--big-value-card-bg, white);
+  border: 1px solid var(--malloy-render--big-value-card-border, #e5e7eb);
   border-radius: 8px;
   box-shadow:
     rgb(255, 255, 255) 0px 0px 0px 0px,
@@ -69,7 +69,7 @@
 .malloy-big-value-label {
   font-size: 13px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--malloy-render--big-value-label-color, #6b7280);
   text-transform: uppercase;
   letter-spacing: 0.025em;
   white-space: nowrap;
@@ -144,21 +144,21 @@
 }
 
 .malloy-big-value-delta--positive {
-  color: #059669;
+  color: var(--malloy-render--big-value-delta-positive, #059669);
 }
 
 .malloy-big-value-delta--negative {
-  color: #dc2626;
+  color: var(--malloy-render--big-value-delta-negative, #dc2626);
 }
 
 .malloy-big-value-delta--neutral {
-  color: #6b7280;
+  color: var(--malloy-render--big-value-delta-neutral, #6b7280);
 }
 
 /* Comparison label */
 .malloy-big-value-comparison-label {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--malloy-render--big-value-label-color, #9ca3af);
   font-weight: 400;
 }
 

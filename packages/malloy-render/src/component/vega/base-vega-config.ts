@@ -1,4 +1,5 @@
 import type {Config} from 'vega';
+import {DARK_THEME} from '../theme';
 
 export const grayMedium = '#727883';
 export const gridGray = '#EBEDF0';
@@ -8,6 +9,18 @@ export interface VegaThemeColors {
   axisLabelColor?: string;
   axisTitleColor?: string;
   gridColor?: string;
+}
+
+/**
+ * Get Vega theme colors for dark mode from the centralized DARK_THEME constant.
+ */
+export function getDarkVegaTheme(): VegaThemeColors {
+  return {
+    background: DARK_THEME.chartBackground,
+    axisLabelColor: DARK_THEME.chartAxisLabelColor,
+    axisTitleColor: DARK_THEME.chartAxisTitleColor,
+    gridColor: DARK_THEME.chartGridColor,
+  };
 }
 
 export const baseVegaConfig: (theme?: VegaThemeColors) => Config = theme => ({

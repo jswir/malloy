@@ -13,10 +13,13 @@ import type {
   VegaConfigHandler,
 } from '@/component/types';
 import type {RenderPluginFactory} from './plugin-types';
+import type {MalloyTheme, ThemePreset} from '@/component/theme';
 
 export type {RenderFieldMetadata} from '@/render-field-metadata';
+export type {MalloyTheme, ThemePreset} from '@/component/theme';
 
 export interface MalloyRendererOptions {
+  theme?: ThemePreset | MalloyTheme;
   onClick?: (payload: MalloyClickEventPayload) => void;
   onDrill?: (drillData: DrillData) => void;
   vegaConfigOverride?: VegaConfigHandler;

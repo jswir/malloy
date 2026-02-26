@@ -16,6 +16,7 @@ import type {MalloyRenderProps} from '@/component/render';
 import type * as Malloy from '@malloydata/malloy-interfaces';
 import {RenderFieldMetadata} from '@/render-field-metadata';
 import {ErrorPlugin} from '@/plugins/error/error-plugin';
+import {resolveTheme} from '@/component/theme';
 
 export class MalloyViz {
   private disposeFn: (() => void) | null = null;
@@ -163,6 +164,7 @@ export class MalloyViz {
     const props: MalloyRenderProps = {
       result: this.result,
       element: this.targetElement,
+      theme: resolveTheme(this.options.theme),
       onClick: this.options.onClick,
       onDrill: this.options.onDrill,
       onError: this.options.onError,

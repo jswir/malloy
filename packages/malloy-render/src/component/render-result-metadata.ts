@@ -57,6 +57,8 @@ export interface RenderMetadata {
   sizingStrategy: 'fill' | 'fixed';
   renderFieldMetadata: RenderFieldMetadata;
   styleOverrides: Record<string, string>;
+  isDarkMode: boolean;
+  themeColors?: {colorScheme?: string; colors?: string[]};
 }
 
 export function getResultMetadata(
@@ -87,6 +89,7 @@ export function getResultMetadata(
         : chartSizingStrategy ?? rootSizingStrategy,
     renderFieldMetadata: options.renderFieldMetadata,
     styleOverrides: {},
+    isDarkMode: false,
   };
 
   return metadata;

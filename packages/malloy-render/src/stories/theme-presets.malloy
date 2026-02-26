@@ -1,0 +1,111 @@
+// Theme Presets Storybook - demonstrates dark, midnight, and light themes
+// across all visualization types: table, bar chart, line chart, big value, dashboard
+
+source: products is duckdb.table("static/data/products.parquet") extend {
+
+  // === TABLE ===
+  view: theme_table is {
+    select: *
+    limit: 100
+  }
+
+  // === BAR CHART ===
+  # bar_chart
+  view: theme_bar_chart is {
+    group_by: category
+    aggregate:
+      total_revenue is retail_price.sum()
+      product_count is count()
+    order_by: total_revenue desc
+    limit: 10
+  }
+
+  // === LINE CHART ===
+  # line_chart
+  view: theme_line_chart is {
+    group_by: created_at.year
+    aggregate:
+      total_revenue is retail_price.sum()
+      avg_price is retail_price.avg()
+    order_by: created_at.year
+  }
+
+  // === BIG VALUE ===
+  # big_value
+  view: theme_big_value is {
+    aggregate:
+      # label="Products"
+      product_count is count()
+      # label="Total Revenue"
+      # currency
+      total_revenue is retail_price.sum()
+      # label="Avg Price"
+      # currency
+      avg_price is retail_price.avg()
+      # label="Categories"
+      category_count is count(distinct category)
+  }
+
+  // === DASHBOARD ===
+  # dashboard
+  view: theme_dashboard is {
+    group_by: category
+    # currency
+    aggregate:
+      avg_retail is retail_price.avg()
+      sum_retail is retail_price.sum()
+      product_count is count()
+    nest:
+      by_brand is {
+        group_by: brand
+        # currency
+        aggregate: avg_retail is retail_price.avg()
+        limit: 5
+      }
+  }
+
+  // === NESTED TABLE ===
+  view: theme_nested_table is {
+    group_by: category
+    aggregate:
+      avg_retail is retail_price.avg()
+      product_count is count()
+    nest: by_brand is {
+      group_by: brand
+      # currency
+      aggregate:
+        avg_retail is retail_price.avg()
+        total_retail is retail_price.sum()
+      limit: 5
+    }
+  }
+
+  // === BIG VALUE WITH COMPARISON ===
+  # big_value
+  view: theme_big_value_comparison is {
+    aggregate:
+      # big_value { comparison_field=prior_revenue comparison_label='vs Prior Period' }
+      # label="Current Revenue"
+      # currency
+      current_revenue is retail_price.sum()
+      # hidden
+      # currency
+      prior_revenue is retail_price.sum() * 0.85
+
+      # big_value { comparison_field=prior_orders comparison_label='vs Last Month' down_is_good=true }
+      # label="Refund Rate"
+      # percent
+      current_orders is 0.042
+      # hidden
+      prior_orders is 0.051
+  }
+
+  // === STACKED BAR CHART ===
+  # bar_chart.stack
+  view: theme_stacked_bar is {
+    group_by: category
+    aggregate: product_count is count()
+    group_by: department
+    limit: 10
+  }
+}

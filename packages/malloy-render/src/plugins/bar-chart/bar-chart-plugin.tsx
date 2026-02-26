@@ -25,7 +25,7 @@ import 'vega-interpreter';
 import {mergeVegaConfigs} from '@/component/vega/merge-vega-configs';
 import {
   baseVegaConfig,
-  type VegaThemeColors,
+  getDarkVegaTheme,
 } from '@/component/vega/base-vega-config';
 import {NULL_SYMBOL} from '@/util';
 import type {
@@ -218,14 +218,7 @@ export const BarChartPluginFactory: RenderPluginFactory<BarChartPluginInstance> 
           const isDarkMode =
             modelTag?.tag('theme')?.text('mode') === 'dark' ||
             field.tag?.tag('theme')?.text('mode') === 'dark';
-          const vegaTheme: VegaThemeColors | undefined = isDarkMode
-            ? {
-                background: '#1e1e20',
-                axisLabelColor: '#9da1aa',
-                axisTitleColor: '#9da1aa',
-                gridColor: '#3a3d44',
-              }
-            : undefined;
+          const vegaTheme = isDarkMode ? getDarkVegaTheme() : undefined;
 
           vegaConfig = mergeVegaConfigs(
             baseVegaConfig(vegaTheme),
