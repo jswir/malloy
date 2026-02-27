@@ -39,6 +39,7 @@ function DashboardItem(props: {
     customProps: {
       table: {
         disableVirtualization: !shouldVirtualizeTable(),
+        shouldFillWidth: true,
       },
     },
   });
@@ -64,13 +65,40 @@ function DashboardItem(props: {
     itemStyle['max-height'] = `${props.maxTableHeight}px`;
 
   const title = getFieldLabel(props.field);
+  const subtitle = props.field.tag.text('subtitle');
+  const span = props.field.tag.numeric('span');
+
+  // Nest items (tables/charts) auto-span 2 columns in the default auto-fit grid.
+  // big_value nests are compact KPI cards, so they don't need extra width.
+  const isBigValue = props.field.tag.has('big_value');
+  const isWideNest = props.field.isNest() && !isBigValue;
+  const gridColumnStyle: Record<string, string> = {};
+  if (span) {
+    gridColumnStyle['grid-column'] = `span ${span}`;
+  } else if (isWideNest) {
+    gridColumnStyle['grid-column'] = 'span 2';
+  } else if (isBigValue) {
+    // Limit big_value width when no explicit span is set
+    gridColumnStyle['max-width'] = '500px';
+  }
 
   return (
     <div
       class="dashboard-item"
+      classList={{
+        'dashboard-item-measure': !!props.isMeasure,
+        'dashboard-item-table':
+          rendering.renderAs === 'table' && props.field.tag.has('borderless'),
+      }}
       onClick={config.onClick ? handleClick : undefined}
+      style={gridColumnStyle}
     >
-      <div class="dashboard-item-title">{title}</div>
+      <div class="dashboard-item-header">
+        <div class="dashboard-item-title">{title}</div>
+        <Show when={subtitle}>
+          <div class="dashboard-item-subtitle">{subtitle}</div>
+        </Show>
+      </div>
       <div
         class="dashboard-item-value"
         classList={{
@@ -97,6 +125,15 @@ export function Dashboard(props: {
   if (maxTableHeightTag?.text() === 'none') maxTableHeight = null;
   else if (maxTableHeightTag?.numeric())
     maxTableHeight = maxTableHeightTag!.numeric()!;
+
+  const columns = dashboardTag?.numeric('columns');
+
+  const getRowBodyStyle = (group: Field[]) => {
+    const hasSpans = group.some(f => f.tag.has('span'));
+    if (hasSpans) return {'grid-template-columns': 'repeat(12, 1fr)'};
+    if (columns) return {'grid-template-columns': `repeat(${columns}, 1fr)`};
+    return undefined;
+  };
 
   const dimensions = () =>
     field.fields.filter(f => {
@@ -199,7 +236,7 @@ export function Dashboard(props: {
                   </div>
                   <For each={nonDimensionsGrouped()}>
                     {group => (
-                      <div class="dashboard-row-body">
+                      <div class="dashboard-row-body" style={getRowBodyStyle(group)}>
                         <For each={group}>
                           {field => (
                             <DashboardItem
@@ -247,7 +284,7 @@ export function Dashboard(props: {
               </div>
               <For each={nonDimensionsGrouped()}>
                 {group => (
-                  <div class="dashboard-row-body">
+                  <div class="dashboard-row-body" style={getRowBodyStyle(group)}>
                     <For each={group}>
                       {field => (
                         <DashboardItem
