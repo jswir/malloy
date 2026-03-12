@@ -101,6 +101,10 @@
     color: var(--malloy-render--table-body-color);
   }
 
+  .dashboard-item-value:has(.malloy-table) {
+    overflow: hidden;
+  }
+
   /* Override chart inline pixel width so it scales to fill the card.
      Vega SVGs have a viewBox, so they scale correctly via CSS.
      Use child combinator to avoid affecting sparklines inside big_value. */
