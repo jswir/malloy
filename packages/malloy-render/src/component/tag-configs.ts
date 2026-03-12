@@ -311,6 +311,8 @@ function resolveTableNestTags(field: Field): TableNestConfig {
 
 export interface DashboardNestConfig {
   maxTableHeight: number | null;
+  columns: number | undefined;
+  gap: number | undefined;
 }
 
 function resolveDashboardTags(field: Field): DashboardNestConfig {
@@ -325,7 +327,10 @@ function resolveDashboardTags(field: Field): DashboardNestConfig {
     maxTableHeight = maxTableHeightTag.numeric()!;
   }
 
-  return {maxTableHeight};
+  const columns = dashboardTag?.numeric('columns');
+  const gap = dashboardTag?.numeric('gap');
+
+  return {maxTableHeight, columns, gap};
 }
 
 // ---- Resolver dispatch ----

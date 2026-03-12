@@ -446,6 +446,40 @@ export class RenderFieldMetadata {
       }
     }
 
+    // --- Dashboard item tags ---
+
+    const spanVal = tag.numeric('span');
+    if (spanVal !== undefined) {
+      if (!Number.isInteger(spanVal) || spanVal < 1 || spanVal > 12) {
+        log.error(
+          `Tag 'span' on field '${field.name}' must be an integer between 1 and 12, got ${spanVal}`,
+          tag.tag('span')
+        );
+      }
+    }
+
+    // --- Dashboard view-level tags ---
+
+    if (tag.has('dashboard') && field.isNest()) {
+      const dashboardTag = tag.tag('dashboard');
+      const columnsVal = dashboardTag?.numeric('columns');
+      if (columnsVal !== undefined) {
+        if (!Number.isInteger(columnsVal) || columnsVal < 1) {
+          log.error(
+            `Dashboard 'columns' on field '${field.name}' must be a positive integer, got ${columnsVal}`,
+            dashboardTag?.tag('columns')
+          );
+        }
+      }
+      const gapVal = dashboardTag?.numeric('gap');
+      if (gapVal !== undefined && gapVal < 0) {
+        log.error(
+          `Dashboard 'gap' on field '${field.name}' must be non-negative, got ${gapVal}`,
+          dashboardTag?.tag('gap')
+        );
+      }
+    }
+
     // --- Number verbose properties ---
     const numberTag = tag.tag('number');
     if (numberTag) {
