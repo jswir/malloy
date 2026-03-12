@@ -236,13 +236,11 @@ export class RenderFieldMetadata {
     }
 
     // --- number tag with bare numeric value ---
-    // Detect # number=123 (bare numeric) vs # number="###,##0" (format string).
-    // Use numeric() + text() since scalarType() may not be in the built package.
-    const numberNumeric = tag.numeric('number');
-    if (numberNumeric !== undefined && tag.text('number') === String(numberNumeric)) {
+    const numberValTag = tag.tag('number');
+    if (numberValTag?.scalarType() === 'number') {
       log.error(
         `Tag 'number' on field '${field.name}' has a bare numeric value. Use a quoted format string instead, e.g. # number="#,##0.00"`,
-        tag.tag('number')
+        numberValTag
       );
     }
 
