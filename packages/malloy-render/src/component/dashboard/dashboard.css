@@ -66,10 +66,11 @@
       rgba(0, 0, 0, 0.06) 0px 2px 4px -2px;
   }
 
-  /* KPI measures: centered text, auto-scaling font via cqi */
+  /* KPI measures: centered text, self-sized height, auto-scaling font via cqi */
   .dashboard-item-measure {
     gap: 4px;
     container-type: inline-size;
+    align-self: start;
   }
 
   .dashboard-item-measure .dashboard-item-title {
