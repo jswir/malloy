@@ -132,12 +132,14 @@ export function Dashboard(props: {
     if (f.isBasic() && f.wasCalculation()) return 3;
     if (f.isNest()) {
       const visibleChildren = f.fields.filter(c => !c.isHidden());
-      const hasNestedNest = visibleChildren.some(c => c.isNest());
-      if (hasNestedNest) return 12;
-      const childCount = visibleChildren.length;
-      if (childCount <= 3) return 4;
-      if (childCount <= 5) return 6;
-      return 8;
+      const weight = visibleChildren.reduce(
+        (sum, c) => sum + (c.isNest() ? 3 : 1),
+        0
+      );
+      if (weight <= 3) return 4;
+      if (weight <= 5) return 6;
+      if (weight <= 8) return 8;
+      return 12;
     }
     return 6;
   };
