@@ -271,6 +271,9 @@ source: products is duckdb.table("static/data/products.parquet") extend {
       }
   }
 
+  // ============================================
+  // Basic dashboard: KPIs in cards (default) + table
+  // ============================================
   #(story)
   # dashboard
   view: dashboard is {
@@ -288,6 +291,33 @@ source: products is duckdb.table("static/data/products.parquet") extend {
       }
   }
 
+  // ============================================
+  // Borderless KPIs: opt out of card styling
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_borderless_kpis is {
+    group_by:
+      category
+    # currency
+    aggregate:
+      # borderless
+      avg_retail is retail_price.avg()
+      # borderless
+      sum_retail is retail_price.sum()
+      # borderless
+      max_retail is retail_price.max()
+    nest:
+      by_brand is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 10
+      }
+  }
+
+  // ============================================
+  // Dense KPIs: many measures in cards + custom labels
+  // ============================================
   #(story)
   # dashboard
   view: dashboard_dense is {
@@ -320,6 +350,9 @@ source: products is duckdb.table("static/data/products.parquet") extend {
       }
   }
 
+  // ============================================
+  // Row break: KPIs then table on new row
+  // ============================================
   #(story)
   # dashboard
   view: dashboard_with_break is {

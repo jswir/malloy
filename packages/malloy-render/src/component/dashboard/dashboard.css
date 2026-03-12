@@ -66,18 +66,10 @@
       rgba(0, 0, 0, 0.06) 0px 2px 4px -2px;
   }
 
-  /* KPI measures: no card, centered, prominent.
-     container-type lets measure values use cqi units to auto-scale font. */
+  /* KPI measures: centered text, auto-scaling font via cqi */
   .dashboard-item-measure {
-    background: none;
-    box-shadow: none;
-    border-radius: 0;
     gap: 4px;
     container-type: inline-size;
-  }
-
-  .dashboard-item-measure:hover {
-    box-shadow: none;
   }
 
   .dashboard-item-measure .dashboard-item-title {
@@ -176,15 +168,15 @@
 }
 
 @container (min-width: 601px) and (max-width: 900px) {
-  .malloy-dashboard .dashboard-row-body[style*="repeat(12"] {
+  .malloy-dashboard .dashboard-row-body[style*='repeat(12'] {
     grid-template-columns: repeat(6, 1fr) !important;
   }
 
-  .malloy-dashboard .dashboard-item[style*="span 8"],
-  .malloy-dashboard .dashboard-item[style*="span 9"],
-  .malloy-dashboard .dashboard-item[style*="span 10"],
-  .malloy-dashboard .dashboard-item[style*="span 11"],
-  .malloy-dashboard .dashboard-item[style*="span 12"] {
+  .malloy-dashboard .dashboard-item[style*='span 8'],
+  .malloy-dashboard .dashboard-item[style*='span 9'],
+  .malloy-dashboard .dashboard-item[style*='span 10'],
+  .malloy-dashboard .dashboard-item[style*='span 11'],
+  .malloy-dashboard .dashboard-item[style*='span 12'] {
     grid-column: 1 / -1 !important;
   }
 }
