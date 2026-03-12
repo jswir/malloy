@@ -80,13 +80,14 @@
     box-shadow: none;
   }
 
-  .dashboard-item-measure .dashboard-item-header {
-    text-align: center;
-  }
-
   .dashboard-item-measure .dashboard-item-title {
+    text-align: center;
     color: var(--malloy-render--dashboard-title-color, #6b7280);
     font-size: var(--malloy-render--dashboard-title-size, 13px);
+  }
+
+  .dashboard-item-measure .dashboard-item-subtitle {
+    text-align: center;
   }
 
   /* Tables: no card, own row borders provide structure */
@@ -105,11 +106,6 @@
     overflow: auto;
     text-align: left;
     color: var(--malloy-render--table-body-color);
-  }
-
-  /* Tables and charts should stretch to fill their dashboard card */
-  .dashboard-item-value .malloy-table.root {
-    width: 100%;
   }
 
   /* Override chart inline pixel width so it scales to fill the card.
