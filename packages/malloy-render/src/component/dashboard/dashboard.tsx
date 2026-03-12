@@ -13,7 +13,7 @@ import type {Field, RecordCell, RecordOrRepeatedRecordCell} from '@/data_tree';
 import {MalloyViz} from '@/api/malloy-viz';
 import styles from './dashboard.css?raw';
 import {useConfig} from '../render';
-import type {DashboardNestConfig} from '../tag-configs';
+import {getFieldLabel} from '@/component/field-label-utils';
 
 function DashboardItem(props: {
   field: Field;
@@ -23,12 +23,8 @@ function DashboardItem(props: {
 }) {
   const config = useConfig();
   const shouldVirtualizeTable = () => {
-    // If dashboard is disabling virtualization, disable table virtualization as well
-    // This is done mainly to support Copy to HTML; not sure if this is correct approach for other scenarios
     if (config.dashboardConfig().disableVirtualization) return false;
-    // If a max height is provided for tables, virtualize them
     else if (props.maxTableHeight) return true;
-    // If no max height is set, then don't virtualize
     else return false;
   };
   const cell = props.row.column(props.field.name);
@@ -37,6 +33,7 @@ function DashboardItem(props: {
     customProps: {
       table: {
         disableVirtualization: !shouldVirtualizeTable(),
+        shouldFillWidth: true,
       },
     },
   });
@@ -61,14 +58,38 @@ function DashboardItem(props: {
   if (rendering.renderAs === 'table' && props.maxTableHeight)
     itemStyle['max-height'] = `${props.maxTableHeight}px`;
 
-  const title = props.field.getLabel();
+  const title = getFieldLabel(props.field);
+  const subtitle = props.field.tag.text('subtitle');
+  const span = props.field.tag.numeric('span');
+
+  const isBigValue = props.field.tag.has('big_value');
+  const isWideNest = props.field.isNest() && !isBigValue;
+  const gridColumnStyle: Record<string, string> = {};
+  if (span) {
+    gridColumnStyle['grid-column'] = `span ${span}`;
+  } else if (isWideNest) {
+    gridColumnStyle['grid-column'] = 'span 2';
+  } else if (isBigValue) {
+    gridColumnStyle['max-width'] = '500px';
+  }
 
   return (
     <div
       class="dashboard-item"
+      classList={{
+        'dashboard-item-measure': !!props.isMeasure,
+        'dashboard-item-table':
+          rendering.renderAs === 'table' && props.field.tag.has('borderless'),
+      }}
       onClick={config.onClick ? handleClick : undefined}
+      style={gridColumnStyle}
     >
-      <div class="dashboard-item-title">{title}</div>
+      <div class="dashboard-item-header">
+        <div class="dashboard-item-title">{title}</div>
+        <Show when={subtitle}>
+          <div class="dashboard-item-subtitle">{subtitle}</div>
+        </Show>
+      </div>
       <div
         class="dashboard-item-value"
         classList={{
@@ -88,10 +109,22 @@ export function Dashboard(props: {
 }) {
   MalloyViz.addStylesheet(styles);
   const field = props.data.field;
-  const dashboardConfig = field.getTagConfig<DashboardNestConfig>();
-  // Default to 361 only when no config resolved; preserve null (means "no limit")
-  const maxTableHeight =
-    dashboardConfig !== undefined ? dashboardConfig.maxTableHeight : 361;
+  const dashboardTag = field.tag.tag('dashboard');
+
+  let maxTableHeight: number | null = 361;
+  const maxTableHeightTag = dashboardTag?.tag('table', 'max_height');
+  if (maxTableHeightTag?.text() === 'none') maxTableHeight = null;
+  else if (maxTableHeightTag?.numeric())
+    maxTableHeight = maxTableHeightTag!.numeric()!;
+
+  const columns = dashboardTag?.numeric('columns');
+
+  const getRowBodyStyle = (group: Field[]) => {
+    const hasSpans = group.some(f => f.tag.has('span'));
+    if (hasSpans) return {'grid-template-columns': 'repeat(12, 1fr)'};
+    if (columns) return {'grid-template-columns': `repeat(${columns}, 1fr)`};
+    return undefined;
+  };
 
   const dimensions = () =>
     field.fields.filter(f => {
@@ -173,13 +206,16 @@ export function Dashboard(props: {
                       <For each={dimensions()}>
                         {d => (
                           <div class="dashboard-dimension-wrapper">
-                            <div class="dashboard-dimension-name">{d.name}</div>
+                            <div class="dashboard-dimension-name">
+                              {getFieldLabel(d)}
+                            </div>
                             <div class="dashboard-dimension-value">
                               {
                                 applyRenderer({
-                                  dataColumn: props.data.rows[
-                                    virtualRow.index
-                                  ].column(d.name),
+                                  dataColumn:
+                                    props.data.rows[virtualRow.index].column(
+                                      d.name
+                                    ),
                                 }).renderValue
                               }
                             </div>
@@ -191,7 +227,10 @@ export function Dashboard(props: {
                   </div>
                   <For each={nonDimensionsGrouped()}>
                     {group => (
-                      <div class="dashboard-row-body">
+                      <div
+                        class="dashboard-row-body"
+                        style={getRowBodyStyle(group)}
+                      >
                         <For each={group}>
                           {field => (
                             <DashboardItem
@@ -220,7 +259,9 @@ export function Dashboard(props: {
                   <For each={dimensions()}>
                     {d => (
                       <div class="dashboard-dimension-wrapper">
-                        <div class="dashboard-dimension-name">{d.name}</div>
+                        <div class="dashboard-dimension-name">
+                          {getFieldLabel(d)}
+                        </div>
                         <div class="dashboard-dimension-value">
                           {
                             applyRenderer({
@@ -236,7 +277,10 @@ export function Dashboard(props: {
               </div>
               <For each={nonDimensionsGrouped()}>
                 {group => (
-                  <div class="dashboard-row-body">
+                  <div
+                    class="dashboard-row-body"
+                    style={getRowBodyStyle(group)}
+                  >
                     <For each={group}>
                       {field => (
                         <DashboardItem
