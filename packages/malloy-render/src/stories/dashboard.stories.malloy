@@ -602,4 +602,31 @@ source: products is duckdb.table("static/data/products.parquet") extend {
       by_category
       recent_products + { limit: 6 }
   }
+
+  // ============================================
+  // Table with nested charts inside a dashboard
+  // Should auto-detect sub-nests and get span 12
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_table_with_nested_charts is {
+    group_by: category
+    aggregate:
+      product_count
+      total_retail
+    nest:
+      brand_detail is {
+        group_by: brand
+        aggregate:
+          product_count
+          total_retail
+        nest:
+          # bar_chart
+          by_department is {
+            group_by: department
+            aggregate: product_count
+          }
+        limit: 10
+      }
+  }
 }
