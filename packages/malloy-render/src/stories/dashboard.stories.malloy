@@ -527,4 +527,79 @@ source: products is duckdb.table("static/data/products.parquet") extend {
         limit: 5
       }
   }
+
+  // ============================================
+  // Legacy dashboard: no new annotations at all.
+  // Mimics real-world dashboards (e.g. malloy-samples/auto_recalls)
+  // with a mix of KPI measures, charts, and tables.
+  // Should look reasonable with zero configuration.
+  // ============================================
+
+  measure:
+    product_count is count()
+    total_retail is retail_price.sum()
+    avg_cost is cost.avg()
+    percent_of_products is count() / all(count()) * 100
+
+  view: by_brand is {
+    group_by: brand
+    aggregate:
+      product_count
+      total_retail
+      percent_of_products
+  }
+
+  view: by_department is {
+    group_by: department
+    aggregate:
+      product_count
+      percent_of_products
+  }
+
+  view: by_category is {
+    group_by: category
+    aggregate: product_count
+    order_by: category
+  }
+
+  view: recent_products is {
+    group_by:
+      name
+      brand
+      category
+      department
+      retail_price
+    order_by: retail_price desc
+    limit: 10
+  }
+
+  #(story)
+  # dashboard
+  view: dashboard_legacy is by_brand + {
+    # line_chart
+    nest: by_category_trend is {
+      group_by: category
+      aggregate: product_count
+    }
+    nest: by_department
+    nest: recent_products
+  }
+
+  // Same legacy structure but more measures
+  #(story)
+  # dashboard
+  view: dashboard_legacy_dense is {
+    group_by: brand
+    # currency
+    aggregate:
+      product_count
+      total_retail
+      avg_cost
+      percent_of_products
+    nest:
+      # bar_chart
+      by_department_chart is by_department
+      by_category
+      recent_products + { limit: 6 }
+  }
 }
