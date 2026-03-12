@@ -129,8 +129,8 @@ export function Dashboard(props: {
   const getItemSpan = (f: Field) => {
     const explicit = f.tag.numeric('span');
     if (explicit) return explicit;
-    if (f.isBasic() && f.wasCalculation()) return 2;
-    return 4;
+    if (f.isBasic() && f.wasCalculation()) return 3;
+    return 6;
   };
 
   const dimensions = () =>
