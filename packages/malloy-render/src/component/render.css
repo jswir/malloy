@@ -20,6 +20,7 @@
   --malloy-theme--dashboard-title-weight: 500;
   --malloy-theme--dashboard-title-color: #4a4d54;
   --malloy-theme--dashboard-value-size: 28px;
+  --malloy-theme--dashboard-gap: 16px;
 
   font-family: var(--malloy-render--font-family);
   font-size: var(--malloy-render--table-font-size);

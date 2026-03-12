@@ -383,6 +383,7 @@ function generateThemeStyle(modelTheme?: Tag, localTheme?: Tag) {
     localTheme,
     modelTheme
   );
+  const dashboardGap = getThemeValue('dashboardGap', localTheme, modelTheme);
 
   const css = `
     --malloy-render--table-row-height: ${tableRowHeight};
@@ -406,6 +407,7 @@ function generateThemeStyle(modelTheme?: Tag, localTheme?: Tag) {
     --malloy-render--dashboard-title-weight: ${dashboardTitleWeight};
     --malloy-render--dashboard-title-color: ${dashboardTitleColor};
     --malloy-render--dashboard-value-size: ${dashboardValueSize};
+    --malloy-render--dashboard-gap: ${dashboardGap};
 `;
   return css;
 }
