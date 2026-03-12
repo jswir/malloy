@@ -220,10 +220,9 @@ export function Dashboard(props: {
                             <div class="dashboard-dimension-value">
                               {
                                 applyRenderer({
-                                  dataColumn:
-                                    props.data.rows[virtualRow.index].column(
-                                      d.name
-                                    ),
+                                  dataColumn: props.data.rows[
+                                    virtualRow.index
+                                  ].column(d.name),
                                 }).renderValue
                               }
                             </div>
