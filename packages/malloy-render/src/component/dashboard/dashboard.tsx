@@ -131,7 +131,10 @@ export function Dashboard(props: {
     if (explicit) return explicit;
     if (f.isBasic() && f.wasCalculation()) return 3;
     if (f.isNest()) {
-      const childCount = f.fields.filter(c => !c.isHidden()).length;
+      const visibleChildren = f.fields.filter(c => !c.isHidden());
+      const hasNestedNest = visibleChildren.some(c => c.isNest());
+      if (hasNestedNest) return 12;
+      const childCount = visibleChildren.length;
       if (childCount <= 3) return 4;
       if (childCount <= 5) return 6;
       return 8;
