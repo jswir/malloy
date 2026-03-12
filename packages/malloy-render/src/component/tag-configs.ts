@@ -311,6 +311,8 @@ function resolveTableNestTags(field: Field): TableNestConfig {
 
 export interface DashboardNestConfig {
   maxTableHeight: number | null;
+  columns: number | undefined;
+  gap: number | undefined;
 }
 
 function resolveDashboardTags(field: Field): DashboardNestConfig {
@@ -325,7 +327,10 @@ function resolveDashboardTags(field: Field): DashboardNestConfig {
     maxTableHeight = maxTableHeightTag.numeric()!;
   }
 
-  return {maxTableHeight};
+  const columns = dashboardTag?.numeric('columns');
+  const gap = dashboardTag?.numeric('gap');
+
+  return {maxTableHeight, columns, gap};
 }
 
 // ---- Resolver dispatch ----
@@ -356,9 +361,12 @@ export function resolveBuiltInTags(field: Field): void {
 
   // Cross-cutting: touch tags that are read at render time by
   // parent components (charts read tooltip on child fields,
-  // dashboards read break on child fields).
+  // dashboards read break/span/subtitle/borderless on child fields).
   tag.tag('tooltip');
   tag.tag('break');
+  tag.tag('span');
+  tag.tag('subtitle');
+  tag.tag('borderless');
 
   // Touch size.height which is read by chart-layout-settings
   // (size and size.width are already read by validateFieldTags)

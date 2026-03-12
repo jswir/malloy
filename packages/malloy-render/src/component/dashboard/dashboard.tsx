@@ -14,6 +14,7 @@ import {MalloyViz} from '@/api/malloy-viz';
 import styles from './dashboard.css?raw';
 import {useConfig} from '../render';
 import {getFieldLabel} from '@/component/field-label-utils';
+import type {DashboardNestConfig} from '@/component/tag-configs';
 
 function DashboardItem(props: {
   field: Field;
@@ -104,16 +105,11 @@ export function Dashboard(props: {
 }) {
   MalloyViz.addStylesheet(styles);
   const field = props.data.field;
-  const dashboardTag = field.tag.tag('dashboard');
+  const dashConfig = field.getTagConfig<DashboardNestConfig>();
 
-  let maxTableHeight: number | null = 361;
-  const maxTableHeightTag = dashboardTag?.tag('table', 'max_height');
-  if (maxTableHeightTag?.text() === 'none') maxTableHeight = null;
-  else if (maxTableHeightTag?.numeric())
-    maxTableHeight = maxTableHeightTag!.numeric()!;
-
-  const columns = dashboardTag?.numeric('columns');
-  const gap = dashboardTag?.numeric('gap');
+  const maxTableHeight = dashConfig?.maxTableHeight ?? 361;
+  const columns = dashConfig?.columns;
+  const gap = dashConfig?.gap;
 
   const dashboardStyle = () => {
     const style: Record<string, string> = {};
