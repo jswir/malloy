@@ -1,5 +1,5 @@
 .malloy-dashboard {
-  background: #f7f9fc;
+  background: var(--malloy-render--dashboard-bg, white);
   width: 100%;
   height: 100%;
   overflow: auto;
@@ -15,7 +15,7 @@
   .dashboard-row-header {
     position: sticky;
     top: 0px;
-    background: #f7f9fc;
+    background: var(--malloy-render--dashboard-bg, white);
     padding: 16px;
     padding-bottom: 0px;
     width: 100%;
@@ -33,27 +33,71 @@
   }
 
   .dashboard-row-body {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 16px;
     padding: 16px;
     padding-top: 12px;
   }
 
+  /* Card styling for charts and tables */
   .dashboard-item {
-    background: white;
-    border-radius: 3px;
-    padding: 16px;
-    width: fit-content;
-    height: fit-content;
+    background: var(--malloy-render--dashboard-card-bg, white);
+    border-radius: var(--malloy-render--dashboard-card-radius, 8px);
+    padding: var(--malloy-render--dashboard-card-padding, 20px);
+    min-width: 0;
     display: grid;
     grid-template-rows: max-content 1fr;
     gap: 12px;
     box-shadow:
       rgb(255, 255, 255) 0px 0px 0px 0px,
       rgb(229, 231, 235) 0px 0px 0px 1px,
-      rgba(0, 0, 0, 0.1) 0px 1px 3px 0px,
-      rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+      rgba(0, 0, 0, 0.05) 0px 1px 3px 0px,
+      rgba(0, 0, 0, 0.05) 0px 1px 2px -1px;
+    transition: box-shadow 0.2s ease;
+  }
+
+  .dashboard-item:hover {
+    box-shadow:
+      rgb(255, 255, 255) 0px 0px 0px 0px,
+      rgb(229, 231, 235) 0px 0px 0px 1px,
+      rgba(0, 0, 0, 0.08) 0px 4px 6px -1px,
+      rgba(0, 0, 0, 0.06) 0px 2px 4px -2px;
+  }
+
+  /* KPI measures: no card, centered, prominent.
+     container-type lets measure values use cqi units to auto-scale font. */
+  .dashboard-item-measure {
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
+    gap: 4px;
+    container-type: inline-size;
+  }
+
+  .dashboard-item-measure:hover {
+    box-shadow: none;
+  }
+
+  .dashboard-item-measure .dashboard-item-header {
+    text-align: center;
+  }
+
+  .dashboard-item-measure .dashboard-item-title {
+    color: var(--malloy-render--dashboard-title-color, #6b7280);
+    font-size: var(--malloy-render--dashboard-title-size, 13px);
+  }
+
+  /* Tables: no card, own row borders provide structure */
+  .dashboard-item-table {
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 12px 0;
+  }
+
+  .dashboard-item-table:hover {
+    box-shadow: none;
   }
 
   .dashboard-item-value {
@@ -62,16 +106,44 @@
     color: var(--malloy-render--table-body-color);
   }
 
+  /* Tables and charts should stretch to fill their dashboard card */
+  .dashboard-item-value .malloy-table.root {
+    width: 100%;
+  }
+
+  /* Override chart inline pixel width so it scales to fill the card.
+     Vega SVGs have a viewBox, so they scale correctly via CSS.
+     Use child combinator to avoid affecting sparklines inside big_value. */
+  .dashboard-item-value > [data-plugin] > .malloy-chart {
+    width: 100% !important;
+  }
+
+  .dashboard-item-value > [data-plugin] > .malloy-chart svg {
+    width: 100%;
+    height: auto;
+  }
+
   .dashboard-item-title {
     text-align: left;
+    font-weight: var(--malloy-render--dashboard-title-weight, 500);
+    font-size: var(--malloy-render--dashboard-title-size, 14px);
+    color: var(--malloy-render--dashboard-title-color, #4a4d54);
+  }
+
+  .dashboard-item-subtitle {
+    font-size: 13px;
     font-weight: 400;
-    font-size: 12px;
-    color: rgb(100, 102, 107);
+    color: #9ca3af;
+    margin-top: 2px;
   }
 
   .dashboard-item-value-measure {
-    font-size: 20px;
-    min-height: 1.1em; // Prevent scrollbar when one line
+    font-size: min(var(--malloy-render--dashboard-value-size, 28px), 11cqi);
+    font-weight: 600;
+    min-height: 1.1em; /* Prevent scrollbar when one line */
+    text-align: center;
+    white-space: nowrap;
+    color: var(--malloy-render--dashboard-value-color, #111827);
   }
 
   .dashboard-dimension-wrapper {
@@ -82,7 +154,7 @@
   }
 
   .dashboard-dimension-name {
-    font-size: 12px;
+    font-size: 13px;
     text-align: left;
   }
   .dashboard-dimension-value {

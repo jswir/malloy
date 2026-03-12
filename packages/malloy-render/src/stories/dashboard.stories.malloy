@@ -1,5 +1,276 @@
 source: products is duckdb.table("static/data/products.parquet") extend {
 
+  // ============================================
+  // Column count: force 3 equal columns
+  // ============================================
+  #(story)
+  # dashboard { columns = 3 }
+  view: dashboard_columns_3 is {
+    group_by:
+      category
+    # currency
+    aggregate:
+      avg_retail is retail_price.avg()
+      sum_retail is retail_price.sum()
+      max_retail is retail_price.max()
+  }
+
+  // ============================================
+  // Column count: force 2 equal columns
+  // ============================================
+  #(story)
+  # dashboard { columns = 2 }
+  view: dashboard_columns_2 is {
+    group_by:
+      category
+    # currency
+    aggregate:
+      avg_retail is retail_price.avg()
+      sum_retail is retail_price.sum()
+      max_retail is retail_price.max()
+    nest:
+      by_brand is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 5
+      }
+  }
+
+  // ============================================
+  // Per-item span on a 12-column grid
+  // 8 + 4 = 12 (wide chart + narrow KPI)
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_span_8_4 is {
+    group_by:
+      category
+    aggregate:
+      # span = 4
+      # currency
+      avg_retail is retail_price.avg()
+    nest:
+      # span = 8
+      by_brand is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 10
+      }
+  }
+
+  // ============================================
+  // Per-item span: three items at 4+4+4
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_span_equal_thirds is {
+    group_by:
+      category
+    # currency
+    aggregate:
+      # span = 4
+      avg_retail is retail_price.avg()
+      # span = 4
+      sum_retail is retail_price.sum()
+      # span = 4
+      max_retail is retail_price.max()
+  }
+
+  // ============================================
+  // Per-item span: mixed 6+6 then 12
+  // Two half-width items, then a full-width table
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_span_mixed is {
+    group_by:
+      category
+    # currency
+    aggregate:
+      # span = 6
+      avg_retail is retail_price.avg()
+      # span = 6
+      sum_retail is retail_price.sum()
+    nest:
+      # span = 12
+      by_brand is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 10
+      }
+  }
+
+  // ============================================
+  // Charts in dashboard: KPIs + line chart + bar chart
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_with_charts is {
+    group_by:
+      category
+    # currency
+    aggregate:
+      # span = 4
+      avg_retail is retail_price.avg()
+      # span = 4
+      sum_retail is retail_price.sum()
+      # span = 4
+      max_retail is retail_price.max()
+    nest:
+      # span = 6
+      # bar_chart
+      by_brand_bar is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 10
+      }
+      # span = 6
+      # bar_chart
+      by_brand_count is {
+        group_by: brand
+        aggregate: product_count is count()
+        limit: 10
+      }
+  }
+
+  // ============================================
+  // Dashboard with line charts + table
+  // ============================================
+  #(story)
+  # dashboard { columns = 2 }
+  view: dashboard_charts_and_table is {
+    group_by:
+      category
+    nest:
+      # bar_chart
+      by_brand_bar is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 8
+      }
+      by_brand_table is {
+        group_by: brand
+        aggregate:
+          avg_retail is retail_price.avg()
+          product_count is count()
+        limit: 8
+      }
+  }
+
+  // ============================================
+  // Full dashboard: KPIs row, then charts row, then table
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_full_layout is {
+    group_by:
+      category
+    # currency
+    aggregate:
+      # span = 4
+      avg_retail is retail_price.avg()
+      # span = 4
+      sum_retail is retail_price.sum()
+      # span = 4
+      max_retail is retail_price.max()
+    nest:
+      # break
+      # span = 6
+      # bar_chart
+      by_brand_chart is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 8
+      }
+      # span = 6
+      by_brand_table is {
+        group_by: brand
+        aggregate:
+          avg_retail is retail_price.avg()
+          product_count is count()
+        limit: 8
+      }
+  }
+
+  // ============================================
+  // Blank spans: 3+3 fills left half, right half empty
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_blank_spans is {
+    group_by:
+      category
+    # currency
+    aggregate:
+      # span = 3
+      avg_retail is retail_price.avg()
+      # span = 3
+      sum_retail is retail_price.sum()
+  }
+
+  // ============================================
+  // Big values with sparklines in dashboard
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_with_sparklines is {
+    group_by:
+      category
+    nest:
+      # span = 4
+      # big_value
+      avg_price_card is {
+        aggregate:
+          # label="Avg Price"
+          # currency
+          # big_value { sparkline=price_trend }
+          avg_price is retail_price.avg()
+        # line_chart { size=spark y.independent=true }
+        # hidden
+        nest: price_trend is {
+          group_by: product_bucket is floor(id / 100)::number
+          # currency
+          aggregate: price is retail_price.avg()
+          order_by: product_bucket
+          limit: 20
+        }
+      }
+      # span = 4
+      # big_value
+      total_products_card is {
+        aggregate:
+          # label="Products"
+          # big_value { sparkline=count_trend }
+          product_count is count()
+        # bar_chart { size=spark y.independent=true }
+        # hidden
+        nest: count_trend is {
+          group_by: product_bucket is floor(id / 100)::number
+          aggregate: cnt is count()
+          order_by: product_bucket
+          limit: 20
+        }
+      }
+      # span = 4
+      # big_value
+      max_price_card is {
+        aggregate:
+          # label="Max Price"
+          # currency
+          # big_value { sparkline=max_trend }
+          max_price is retail_price.max()
+        # line_chart { size=spark y.independent=true }
+        # hidden
+        nest: max_trend is {
+          group_by: product_bucket is floor(id / 100)::number
+          # currency
+          aggregate: price is retail_price.max()
+          order_by: product_bucket
+          limit: 20
+        }
+      }
+  }
+
   #(story)
   # dashboard
   view: dashboard is {
@@ -63,6 +334,46 @@ source: products is duckdb.table("static/data/products.parquet") extend {
       by_brand is {
         group_by: brand
         aggregate: avg_retail is retail_price.avg()
+        limit: 10
+      }
+  }
+
+  // ============================================
+  // UX mockup: subtitles, big_value centering, table in card
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_ux_mockup is {
+    group_by:
+      category
+    nest:
+      // Row 1: Big value (6) next to chart (6)
+      // Big value should vertically center next to the taller chart
+      # span = 6
+      # big_value
+      avg_price_kpi is {
+        aggregate:
+          # label="Average Retail Price"
+          # currency
+          avg_price is retail_price.avg()
+      }
+      # span = 6
+      # bar_chart
+      # subtitle="Top 10 brands"
+      brand_chart is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 10
+      }
+      // Row 2: Full-width table in card with subtitle
+      # break
+      # span = 12
+      # subtitle="Top 10 brands by average retail price"
+      brand_detail is {
+        group_by: brand
+        aggregate:
+          avg_retail is retail_price.avg()
+          product_count is count()
         limit: 10
       }
   }

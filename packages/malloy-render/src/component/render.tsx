@@ -347,6 +347,43 @@ function generateThemeStyle(modelTheme?: Tag, localTheme?: Tag) {
   const fontFamily = getThemeValue('fontFamily', localTheme, modelTheme);
   const background = getThemeValue('background', localTheme, modelTheme);
 
+  const dashboardBg = getThemeValue('dashboardBg', localTheme, modelTheme);
+  const dashboardCardBg = getThemeValue(
+    'dashboardCardBg',
+    localTheme,
+    modelTheme
+  );
+  const dashboardCardRadius = getThemeValue(
+    'dashboardCardRadius',
+    localTheme,
+    modelTheme
+  );
+  const dashboardCardPadding = getThemeValue(
+    'dashboardCardPadding',
+    localTheme,
+    modelTheme
+  );
+  const dashboardTitleSize = getThemeValue(
+    'dashboardTitleSize',
+    localTheme,
+    modelTheme
+  );
+  const dashboardTitleWeight = getThemeValue(
+    'dashboardTitleWeight',
+    localTheme,
+    modelTheme
+  );
+  const dashboardTitleColor = getThemeValue(
+    'dashboardTitleColor',
+    localTheme,
+    modelTheme
+  );
+  const dashboardValueSize = getThemeValue(
+    'dashboardValueSize',
+    localTheme,
+    modelTheme
+  );
+
   const css = `
     --malloy-render--table-row-height: ${tableRowHeight};
     --malloy-render--table-body-color: ${tableBodyColor};
@@ -361,7 +398,14 @@ function generateThemeStyle(modelTheme?: Tag, localTheme?: Tag) {
     --malloy-render--table-pinned-background: ${tablePinnedBackground};
     --malloy-render--table-pinned-border: ${tablePinnedBorder};
     --malloy-render--background: ${background};
-
+    --malloy-render--dashboard-bg: ${dashboardBg};
+    --malloy-render--dashboard-card-bg: ${dashboardCardBg};
+    --malloy-render--dashboard-card-radius: ${dashboardCardRadius};
+    --malloy-render--dashboard-card-padding: ${dashboardCardPadding};
+    --malloy-render--dashboard-title-size: ${dashboardTitleSize};
+    --malloy-render--dashboard-title-weight: ${dashboardTitleWeight};
+    --malloy-render--dashboard-title-color: ${dashboardTitleColor};
+    --malloy-render--dashboard-value-size: ${dashboardValueSize};
 `;
   return css;
 }
