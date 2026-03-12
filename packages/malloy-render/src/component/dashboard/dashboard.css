@@ -90,15 +90,14 @@
     text-align: center;
   }
 
-  /* Tables: no card, own row borders provide structure */
-  .dashboard-item-table {
+  .dashboard-item-borderless {
     background: none;
     box-shadow: none;
     border-radius: 0;
     padding: 12px 0;
   }
 
-  .dashboard-item-table:hover {
+  .dashboard-item-borderless:hover {
     box-shadow: none;
   }
 

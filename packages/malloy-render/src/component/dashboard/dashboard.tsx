@@ -78,8 +78,7 @@ function DashboardItem(props: {
       class="dashboard-item"
       classList={{
         'dashboard-item-measure': !!props.isMeasure,
-        'dashboard-item-table':
-          rendering.renderAs === 'table' && props.field.tag.has('borderless'),
+        'dashboard-item-borderless': props.field.tag.has('borderless'),
       }}
       onClick={config.onClick ? handleClick : undefined}
       style={gridColumnStyle}
