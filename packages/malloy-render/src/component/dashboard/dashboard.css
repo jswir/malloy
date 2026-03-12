@@ -76,6 +76,8 @@
     text-align: center;
     color: var(--malloy-render--dashboard-title-color, #6b7280);
     font-size: var(--malloy-render--dashboard-title-size, 13px);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
   }
 
   .dashboard-item-measure .dashboard-item-subtitle {
@@ -126,9 +128,10 @@
   }
 
   .dashboard-item-value-measure {
-    font-size: min(var(--malloy-render--dashboard-value-size, 28px), 11cqi);
+    font-size: min(var(--malloy-render--dashboard-value-size, 32px), 11cqi);
     font-weight: 600;
-    min-height: 1.1em; /* Prevent scrollbar when one line */
+    line-height: 1.2;
+    min-height: 1.1em;
     text-align: center;
     white-space: nowrap;
     color: var(--malloy-render--dashboard-value-color, #111827);
