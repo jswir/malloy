@@ -470,6 +470,15 @@ export class RenderFieldMetadata {
             dashboardTag?.tag('columns')
           );
         }
+        // Warn if children use # span inside a columns-mode dashboard
+        for (const child of field.fields) {
+          if (child.tag.numeric('span') !== undefined) {
+            log.warn(
+              `Tag 'span' on field '${child.name}' is ignored because parent dashboard '${field.name}' uses 'columns' mode`,
+              child.tag.tag('span')
+            );
+          }
+        }
       }
       const gapVal = dashboardTag?.numeric('gap');
       if (gapVal !== undefined && gapVal < 0) {

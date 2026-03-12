@@ -161,7 +161,8 @@
   padding: 4px 0;
 }
 
-/* Scale sparkline chart to fill its container */
+/* Scale sparkline chart to fill its container.
+   !important overrides Vega's inline pixel-width styles on the chart element. */
 .malloy-big-value-sparkline .malloy-chart {
   width: 100% !important;
   height: auto !important;

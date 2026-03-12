@@ -140,7 +140,7 @@
     font-size: min(var(--malloy-render--dashboard-value-size, 32px), 11cqi);
     font-weight: 600;
     line-height: 1.2;
-    min-height: 1.1em;
+    min-height: 1.1em; /* Prevent scrollbar when one line */
     text-align: center;
     white-space: nowrap;
     color: var(--malloy-render--dashboard-value-color, #111827);
@@ -184,11 +184,11 @@
     grid-template-columns: repeat(6, 1fr) !important;
   }
 
-  .malloy-dashboard .dashboard-item[style*='span 8'],
-  .malloy-dashboard .dashboard-item[style*='span 9'],
-  .malloy-dashboard .dashboard-item[style*='span 10'],
-  .malloy-dashboard .dashboard-item[style*='span 11'],
-  .malloy-dashboard .dashboard-item[style*='span 12'] {
+  .malloy-dashboard .dashboard-item[data-span='8'],
+  .malloy-dashboard .dashboard-item[data-span='9'],
+  .malloy-dashboard .dashboard-item[data-span='10'],
+  .malloy-dashboard .dashboard-item[data-span='11'],
+  .malloy-dashboard .dashboard-item[data-span='12'] {
     grid-column: 1 / -1 !important;
   }
 }
