@@ -62,13 +62,12 @@ function DashboardItem(props: {
 
   const title = getFieldLabel(props.field);
   const subtitle = props.field.tag.text('subtitle');
-  const span = props.field.tag.numeric('span');
 
-  const effectiveSpan = span ?? props.spanOverride;
   const gridColumnStyle: Record<string, string> = {};
-  if (effectiveSpan) {
-    gridColumnStyle['grid-column'] = `span ${effectiveSpan}`;
+  if (props.spanOverride) {
+    gridColumnStyle['grid-column'] = `span ${props.spanOverride}`;
   }
+  const dataSpan = props.spanOverride;
 
   return (
     <div
@@ -79,6 +78,7 @@ function DashboardItem(props: {
       }}
       onClick={config.onClick ? handleClick : undefined}
       style={gridColumnStyle}
+      data-span={dataSpan}
     >
       <div class="dashboard-item-header">
         <div class="dashboard-item-title">{title}</div>
@@ -107,7 +107,10 @@ export function Dashboard(props: {
   const field = props.data.field;
   const dashConfig = field.getTagConfig<DashboardNestConfig>();
 
-  const maxTableHeight = dashConfig?.maxTableHeight ?? 361;
+  // resolveDashboardTags always returns a config; 361 fallback is a safety net
+  // for unexpected undefined. Preserve null (means "no limit, no virtualization").
+  const maxTableHeight =
+    dashConfig !== undefined ? dashConfig.maxTableHeight : 361;
   const columns = dashConfig?.columns;
   const gap = dashConfig?.gap;
 
@@ -123,6 +126,8 @@ export function Dashboard(props: {
   };
 
   const getItemSpan = (f: Field) => {
+    // In columns mode, span tags are ignored — the grid is N equal columns
+    if (columns) return undefined;
     const explicit = f.tag.numeric('span');
     if (explicit) return explicit;
     if (f.isBasic() && f.wasCalculation()) return 3;

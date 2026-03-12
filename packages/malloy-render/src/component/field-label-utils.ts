@@ -21,5 +21,7 @@ export function getFieldLabel(field: {
   name: string;
   tag: {text: (...args: string[]) => string | undefined};
 }): string {
-  return field.tag.text('label') || snakeToTitleCase(field.name);
+  const label = field.tag.text('label');
+  if (label !== undefined) return label;
+  return snakeToTitleCase(field.name);
 }
