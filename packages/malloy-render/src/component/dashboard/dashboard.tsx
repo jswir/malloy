@@ -20,7 +20,7 @@ function DashboardItem(props: {
   row: RecordCell;
   maxTableHeight: number | null;
   isMeasure?: boolean;
-  defaultSpan?: number;
+  spanOverride?: number;
 }) {
   const config = useConfig();
   const shouldVirtualizeTable = () => {
@@ -63,7 +63,7 @@ function DashboardItem(props: {
   const subtitle = props.field.tag.text('subtitle');
   const span = props.field.tag.numeric('span');
 
-  const effectiveSpan = span ?? props.defaultSpan;
+  const effectiveSpan = span ?? props.spanOverride;
   const gridColumnStyle: Record<string, string> = {};
   if (effectiveSpan) {
     gridColumnStyle['grid-column'] = `span ${effectiveSpan}`;
@@ -121,25 +121,16 @@ export function Dashboard(props: {
     return style;
   };
 
-  const getRowBodyStyle = (group: Field[]) => {
-    const hasSpans = group.some(f => f.tag.has('span'));
-    if (hasSpans) return {'grid-template-columns': 'repeat(12, 1fr)'};
+  const getRowBodyStyle = () => {
     if (columns) return {'grid-template-columns': `repeat(${columns}, 1fr)`};
-    return undefined;
+    return {'grid-template-columns': 'repeat(12, 1fr)'};
   };
 
-  const getDefaultSpan = (group: Field[]) => {
-    const hasSpans = group.some(f => f.tag.has('span'));
-    if (!hasSpans) return undefined;
-    const unspanned = group.filter(f => !f.tag.has('span'));
-    if (unspanned.length === 0) return undefined;
-    const usedCols = group.reduce(
-      (sum, f) => sum + (f.tag.numeric('span') ?? 0),
-      0
-    );
-    const remaining = Math.max(0, 12 - (usedCols % 12 || 12));
-    if (remaining === 0) return 4;
-    return Math.max(1, Math.floor(remaining / unspanned.length));
+  const getItemSpan = (f: Field) => {
+    const explicit = f.tag.numeric('span');
+    if (explicit) return explicit;
+    if (f.isBasic() && f.wasCalculation()) return 2;
+    return 4;
   };
 
   const dimensions = () =>
@@ -243,10 +234,7 @@ export function Dashboard(props: {
                   </div>
                   <For each={nonDimensionsGrouped()}>
                     {group => (
-                      <div
-                        class="dashboard-row-body"
-                        style={getRowBodyStyle(group)}
-                      >
+                      <div class="dashboard-row-body" style={getRowBodyStyle()}>
                         <For each={group}>
                           {field => (
                             <DashboardItem
@@ -254,7 +242,7 @@ export function Dashboard(props: {
                               row={props.data.rows[virtualRow.index]}
                               isMeasure={field.wasCalculation()}
                               maxTableHeight={maxTableHeight}
-                              defaultSpan={getDefaultSpan(group)}
+                              spanOverride={getItemSpan(field)}
                             />
                           )}
                         </For>
@@ -294,10 +282,7 @@ export function Dashboard(props: {
               </div>
               <For each={nonDimensionsGrouped()}>
                 {group => (
-                  <div
-                    class="dashboard-row-body"
-                    style={getRowBodyStyle(group)}
-                  >
+                  <div class="dashboard-row-body" style={getRowBodyStyle()}>
                     <For each={group}>
                       {field => (
                         <DashboardItem
@@ -305,7 +290,7 @@ export function Dashboard(props: {
                           row={row}
                           isMeasure={field.wasCalculation()}
                           maxTableHeight={maxTableHeight}
-                          defaultSpan={getDefaultSpan(group)}
+                          spanOverride={getItemSpan(field)}
                         />
                       )}
                     </For>

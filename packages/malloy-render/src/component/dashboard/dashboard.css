@@ -35,7 +35,7 @@
 
   .dashboard-row-body {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(12, 1fr);
     gap: var(--malloy-render--dashboard-gap, 16px);
     padding: 16px;
     padding-top: 12px;
@@ -175,7 +175,7 @@
 }
 
 @container (min-width: 601px) and (max-width: 900px) {
-  .malloy-dashboard .dashboard-row-body[style*='repeat(12'] {
+  .malloy-dashboard .dashboard-row-body {
     grid-template-columns: repeat(6, 1fr) !important;
   }
 
