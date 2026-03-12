@@ -415,8 +415,6 @@ source: products is duckdb.table("static/data/products.parquet") extend {
     group_by:
       category
     nest:
-      // Row 1: Big value (6) next to chart (6)
-      // Big value should vertically center next to the taller chart
       # span = 6
       # big_value
       avg_price_kpi is {
@@ -433,7 +431,6 @@ source: products is duckdb.table("static/data/products.parquet") extend {
         aggregate: avg_retail is retail_price.avg()
         limit: 10
       }
-      // Row 2: Full-width table in card with subtitle
       # break
       # span = 12
       # subtitle="Top 10 brands by average retail price"
@@ -443,6 +440,91 @@ source: products is duckdb.table("static/data/products.parquet") extend {
           avg_retail is retail_price.avg()
           product_count is count()
         limit: 10
+      }
+  }
+
+  // ============================================
+  // Tall chart via size.height inside a dashboard
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_tall_chart is {
+    group_by:
+      category
+    # currency
+    aggregate:
+      # span = 4
+      avg_retail is retail_price.avg()
+      # span = 4
+      sum_retail is retail_price.sum()
+      # span = 4
+      max_retail is retail_price.max()
+    nest:
+      # break
+      # span = 12
+      # bar_chart { size.height = 400 }
+      # subtitle="Taller chart (400px) via size.height"
+      by_brand_tall is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 15
+      }
+  }
+
+  // ============================================
+  // size=lg chart in a narrow span (3 columns)
+  // Tests: does a 640px preset chart scale down in a ~25% card?
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_lg_chart_narrow_span is {
+    group_by:
+      category
+    nest:
+      # span = 3
+      # bar_chart { size = lg }
+      # subtitle="size=lg in span=3 (narrow)"
+      narrow_lg is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 8
+      }
+      # span = 9
+      # bar_chart { size = lg }
+      # subtitle="size=lg in span=9 (wide)"
+      wide_lg is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 8
+      }
+  }
+
+  // ============================================
+  // Mixed spans: some items have # span, some don't
+  // Tests: non-span items get computed default span
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_mixed_span_defaults is {
+    group_by:
+      category
+    # currency
+    aggregate:
+      avg_retail is retail_price.avg()
+      sum_retail is retail_price.sum()
+    nest:
+      # span = 8
+      # bar_chart
+      by_brand is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 10
+      }
+      // This table has no # span — should get remaining 4 cols
+      by_dept is {
+        group_by: department
+        aggregate: avg_retail is retail_price.avg()
+        limit: 5
       }
   }
 }

@@ -20,6 +20,7 @@ function DashboardItem(props: {
   row: RecordCell;
   maxTableHeight: number | null;
   isMeasure?: boolean;
+  defaultSpan?: number;
 }) {
   const config = useConfig();
   const shouldVirtualizeTable = () => {
@@ -62,15 +63,10 @@ function DashboardItem(props: {
   const subtitle = props.field.tag.text('subtitle');
   const span = props.field.tag.numeric('span');
 
-  const isBigValue = props.field.tag.has('big_value');
-  const isWideNest = props.field.isNest() && !isBigValue;
+  const effectiveSpan = span ?? props.defaultSpan;
   const gridColumnStyle: Record<string, string> = {};
-  if (span) {
-    gridColumnStyle['grid-column'] = `span ${span}`;
-  } else if (isWideNest) {
-    gridColumnStyle['grid-column'] = 'span 2';
-  } else if (isBigValue) {
-    gridColumnStyle['max-width'] = '500px';
+  if (effectiveSpan) {
+    gridColumnStyle['grid-column'] = `span ${effectiveSpan}`;
   }
 
   return (
@@ -130,6 +126,20 @@ export function Dashboard(props: {
     if (hasSpans) return {'grid-template-columns': 'repeat(12, 1fr)'};
     if (columns) return {'grid-template-columns': `repeat(${columns}, 1fr)`};
     return undefined;
+  };
+
+  const getDefaultSpan = (group: Field[]) => {
+    const hasSpans = group.some(f => f.tag.has('span'));
+    if (!hasSpans) return undefined;
+    const unspanned = group.filter(f => !f.tag.has('span'));
+    if (unspanned.length === 0) return undefined;
+    const usedCols = group.reduce(
+      (sum, f) => sum + (f.tag.numeric('span') ?? 0),
+      0
+    );
+    const remaining = Math.max(0, 12 - (usedCols % 12 || 12));
+    if (remaining === 0) return 4;
+    return Math.max(1, Math.floor(remaining / unspanned.length));
   };
 
   const dimensions = () =>
@@ -244,6 +254,7 @@ export function Dashboard(props: {
                               row={props.data.rows[virtualRow.index]}
                               isMeasure={field.wasCalculation()}
                               maxTableHeight={maxTableHeight}
+                              defaultSpan={getDefaultSpan(group)}
                             />
                           )}
                         </For>
@@ -294,6 +305,7 @@ export function Dashboard(props: {
                           row={row}
                           isMeasure={field.wasCalculation()}
                           maxTableHeight={maxTableHeight}
+                          defaultSpan={getDefaultSpan(group)}
                         />
                       )}
                     </For>
