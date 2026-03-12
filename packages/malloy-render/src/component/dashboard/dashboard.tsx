@@ -118,6 +118,13 @@ export function Dashboard(props: {
     maxTableHeight = maxTableHeightTag!.numeric()!;
 
   const columns = dashboardTag?.numeric('columns');
+  const gap = dashboardTag?.numeric('gap');
+
+  const dashboardStyle = () => {
+    const style: Record<string, string> = {};
+    if (gap) style['--malloy-render--dashboard-gap'] = `${gap}px`;
+    return style;
+  };
 
   const getRowBodyStyle = (group: Field[]) => {
     const hasSpans = group.some(f => f.tag.has('span'));
@@ -173,6 +180,7 @@ export function Dashboard(props: {
   return (
     <div
       class="malloy-dashboard"
+      style={dashboardStyle()}
       ref={el => {
         if (!props.scrollEl) scrollEl = el;
       }}
