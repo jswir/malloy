@@ -130,6 +130,12 @@ export function Dashboard(props: {
     const explicit = f.tag.numeric('span');
     if (explicit) return explicit;
     if (f.isBasic() && f.wasCalculation()) return 3;
+    if (f.isNest()) {
+      const childCount = f.fields.filter(c => !c.isHidden()).length;
+      if (childCount <= 3) return 4;
+      if (childCount <= 5) return 6;
+      return 8;
+    }
     return 6;
   };
 
