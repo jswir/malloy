@@ -313,6 +313,7 @@ export interface DashboardNestConfig {
   maxTableHeight: number | null;
   columns: number | undefined;
   gap: number | undefined;
+  useGrid: boolean;
 }
 
 function resolveDashboardTags(field: Field): DashboardNestConfig {
@@ -330,7 +331,19 @@ function resolveDashboardTags(field: Field): DashboardNestConfig {
   const columns = dashboardTag?.numeric('columns');
   const gap = dashboardTag?.numeric('gap');
 
-  return {maxTableHeight, columns, gap};
+  // Use grid layout only when grid-specific features are explicitly requested.
+  // Plain `# dashboard` preserves the original flex layout.
+  let useGrid = !!(columns || gap);
+  if (!useGrid && field.isNest()) {
+    for (const child of field.fields) {
+      if (child.tag.has('span')) {
+        useGrid = true;
+        break;
+      }
+    }
+  }
+
+  return {maxTableHeight, columns, gap, useGrid};
 }
 
 // ---- Resolver dispatch ----

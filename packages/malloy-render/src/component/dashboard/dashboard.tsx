@@ -113,6 +113,7 @@ export function Dashboard(props: {
     dashConfig !== undefined ? dashConfig.maxTableHeight : 361;
   const columns = dashConfig?.columns;
   const gap = dashConfig?.gap;
+  const useGrid = dashConfig?.useGrid ?? false;
 
   const dashboardStyle = () => {
     const style: Record<string, string> = {};
@@ -121,11 +122,13 @@ export function Dashboard(props: {
   };
 
   const getRowBodyStyle = () => {
+    if (!useGrid) return {};
     if (columns) return {'grid-template-columns': `repeat(${columns}, 1fr)`};
     return {'grid-template-columns': 'repeat(12, 1fr)'};
   };
 
   const getItemSpan = (f: Field) => {
+    if (!useGrid) return undefined;
     // In columns mode, span tags are ignored — the grid is N equal columns
     if (columns) return undefined;
     const explicit = f.tag.numeric('span');
@@ -246,7 +249,7 @@ export function Dashboard(props: {
                   </div>
                   <For each={nonDimensionsGrouped()}>
                     {group => (
-                      <div class="dashboard-row-body" style={getRowBodyStyle()}>
+                      <div class={useGrid ? 'dashboard-row-body dashboard-row-body-grid' : 'dashboard-row-body'} style={getRowBodyStyle()}>
                         <For each={group}>
                           {field => (
                             <DashboardItem
@@ -294,7 +297,7 @@ export function Dashboard(props: {
               </div>
               <For each={nonDimensionsGrouped()}>
                 {group => (
-                  <div class="dashboard-row-body" style={getRowBodyStyle()}>
+                  <div class={useGrid ? 'dashboard-row-body dashboard-row-body-grid' : 'dashboard-row-body'} style={getRowBodyStyle()}>
                     <For each={group}>
                       {field => (
                         <DashboardItem

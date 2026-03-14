@@ -34,11 +34,17 @@
   }
 
   .dashboard-row-body {
-    display: grid;
-    grid-template-columns: repeat(12, 1fr);
+    display: flex;
+    flex-wrap: wrap;
     gap: var(--malloy-render--dashboard-gap, 16px);
     padding: 16px;
     padding-top: 12px;
+  }
+
+  .dashboard-row-body-grid {
+    display: grid;
+    flex-wrap: initial;
+    grid-template-columns: repeat(12, 1fr);
   }
 
   /* Card styling for charts and tables */
@@ -46,7 +52,8 @@
     background: var(--malloy-render--dashboard-card-bg, white);
     border-radius: var(--malloy-render--dashboard-card-radius, 8px);
     padding: var(--malloy-render--dashboard-card-padding, 20px);
-    min-width: 0;
+    width: fit-content;
+    height: fit-content;
     display: grid;
     grid-template-rows: max-content 1fr;
     gap: 12px;
@@ -56,6 +63,13 @@
       rgba(0, 0, 0, 0.05) 0px 1px 3px 0px,
       rgba(0, 0, 0, 0.05) 0px 1px 2px -1px;
     transition: box-shadow 0.2s ease;
+  }
+
+  /* In grid mode, items stretch to fill their grid cell */
+  .dashboard-row-body-grid .dashboard-item {
+    width: auto;
+    height: auto;
+    min-width: 0;
   }
 
   .dashboard-item:hover {
@@ -164,13 +178,13 @@
   }
 }
 
-/* Responsive: collapse span items to full-width on narrow containers */
+/* Responsive: collapse span items to full-width on narrow containers (grid mode only) */
 @container (max-width: 600px) {
-  .malloy-dashboard .dashboard-row-body {
+  .malloy-dashboard .dashboard-row-body-grid {
     grid-template-columns: 1fr !important;
   }
 
-  .malloy-dashboard .dashboard-item {
+  .malloy-dashboard .dashboard-row-body-grid .dashboard-item {
     grid-column: span 1 !important;
   }
 
@@ -180,15 +194,15 @@
 }
 
 @container (min-width: 601px) and (max-width: 900px) {
-  .malloy-dashboard .dashboard-row-body {
+  .malloy-dashboard .dashboard-row-body-grid {
     grid-template-columns: repeat(6, 1fr) !important;
   }
 
-  .malloy-dashboard .dashboard-item[data-span='8'],
-  .malloy-dashboard .dashboard-item[data-span='9'],
-  .malloy-dashboard .dashboard-item[data-span='10'],
-  .malloy-dashboard .dashboard-item[data-span='11'],
-  .malloy-dashboard .dashboard-item[data-span='12'] {
+  .malloy-dashboard .dashboard-row-body-grid .dashboard-item[data-span='8'],
+  .malloy-dashboard .dashboard-row-body-grid .dashboard-item[data-span='9'],
+  .malloy-dashboard .dashboard-row-body-grid .dashboard-item[data-span='10'],
+  .malloy-dashboard .dashboard-row-body-grid .dashboard-item[data-span='11'],
+  .malloy-dashboard .dashboard-row-body-grid .dashboard-item[data-span='12'] {
     grid-column: 1 / -1 !important;
   }
 }
