@@ -120,13 +120,24 @@ export function Dashboard(props: {
     return style;
   };
 
+  const useGrid = (() => {
+    if (columns || gap) return true;
+    return field.fields.some(
+      f =>
+        !f.isHidden() &&
+        !(f.isBasic() && f.wasDimension()) &&
+        f.tag.numeric('span') !== undefined
+    );
+  })();
+
   const getRowBodyStyle = () => {
+    if (!useGrid) return {};
     if (columns) return {'grid-template-columns': `repeat(${columns}, 1fr)`};
     return {'grid-template-columns': 'repeat(12, 1fr)'};
   };
 
-  const getItemSpan = (f: Field) => {
-    // In columns mode, span tags are ignored — the grid is N equal columns
+  const getItemSpan = (f: Field): number | undefined => {
+    if (!useGrid) return undefined;
     if (columns) return undefined;
     const explicit = f.tag.numeric('span');
     if (explicit) return explicit;
@@ -246,7 +257,11 @@ export function Dashboard(props: {
                   </div>
                   <For each={nonDimensionsGrouped()}>
                     {group => (
-                      <div class="dashboard-row-body" style={getRowBodyStyle()}>
+                      <div
+                        class="dashboard-row-body"
+                        classList={{'dashboard-grid': useGrid}}
+                        style={getRowBodyStyle()}
+                      >
                         <For each={group}>
                           {field => (
                             <DashboardItem
@@ -294,7 +309,11 @@ export function Dashboard(props: {
               </div>
               <For each={nonDimensionsGrouped()}>
                 {group => (
-                  <div class="dashboard-row-body" style={getRowBodyStyle()}>
+                  <div
+                    class="dashboard-row-body"
+                    classList={{'dashboard-grid': useGrid}}
+                    style={getRowBodyStyle()}
+                  >
                     <For each={group}>
                       {field => (
                         <DashboardItem

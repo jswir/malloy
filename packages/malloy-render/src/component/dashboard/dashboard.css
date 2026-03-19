@@ -34,11 +34,16 @@
   }
 
   .dashboard-row-body {
-    display: grid;
-    grid-template-columns: repeat(12, 1fr);
+    display: flex;
+    flex-wrap: wrap;
     gap: var(--malloy-render--dashboard-gap, 16px);
     padding: 16px;
     padding-top: 12px;
+  }
+
+  .dashboard-row-body.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
   }
 
   /* Card styling for charts and tables */
@@ -46,7 +51,8 @@
     background: var(--malloy-render--dashboard-card-bg, white);
     border-radius: var(--malloy-render--dashboard-card-radius, 8px);
     padding: var(--malloy-render--dashboard-card-padding, 20px);
-    min-width: 0;
+    width: fit-content;
+    height: fit-content;
     display: grid;
     grid-template-rows: max-content 1fr;
     gap: 12px;
@@ -58,6 +64,12 @@
     transition: box-shadow 0.2s ease;
   }
 
+  .dashboard-grid .dashboard-item {
+    width: auto;
+    height: auto;
+    min-width: 0;
+  }
+
   .dashboard-item:hover {
     box-shadow:
       rgb(255, 255, 255) 0px 0px 0px 0px,
@@ -66,11 +78,17 @@
       rgba(0, 0, 0, 0.06) 0px 2px 4px -2px;
   }
 
-  /* KPI measures: centered text, self-sized height, auto-scaling font via cqi */
+  /* KPI measures: centered text, self-sized height */
   .dashboard-item-measure {
     gap: 4px;
-    container-type: inline-size;
     align-self: start;
+  }
+
+  /* container-type only works in grid where items get a definite width from the grid;
+     in flex mode the containment collapses the card since fit-content + inline-size
+     containment creates a circular dependency. */
+  .dashboard-grid .dashboard-item-measure {
+    container-type: inline-size;
   }
 
   .dashboard-item-measure .dashboard-item-title {
@@ -137,13 +155,17 @@
   }
 
   .dashboard-item-value-measure {
-    font-size: min(var(--malloy-render--dashboard-value-size, 32px), 11cqi);
+    font-size: var(--malloy-render--dashboard-value-size, 32px);
     font-weight: 600;
     line-height: 1.2;
-    min-height: 1.1em; /* Prevent scrollbar when one line */
+    min-height: 1.1em;
     text-align: center;
     white-space: nowrap;
     color: var(--malloy-render--dashboard-value-color, #111827);
+  }
+
+  .dashboard-grid .dashboard-item-value-measure {
+    font-size: min(var(--malloy-render--dashboard-value-size, 32px), 11cqi);
   }
 
   .dashboard-dimension-wrapper {
@@ -164,13 +186,13 @@
   }
 }
 
-/* Responsive: collapse span items to full-width on narrow containers */
+/* Responsive: collapse grid items on narrow containers (flex mode wraps naturally) */
 @container (max-width: 600px) {
-  .malloy-dashboard .dashboard-row-body {
+  .malloy-dashboard .dashboard-grid {
     grid-template-columns: 1fr !important;
   }
 
-  .malloy-dashboard .dashboard-item {
+  .malloy-dashboard .dashboard-grid .dashboard-item {
     grid-column: span 1 !important;
   }
 
@@ -180,15 +202,15 @@
 }
 
 @container (min-width: 601px) and (max-width: 900px) {
-  .malloy-dashboard .dashboard-row-body {
+  .malloy-dashboard .dashboard-grid {
     grid-template-columns: repeat(6, 1fr) !important;
   }
 
-  .malloy-dashboard .dashboard-item[data-span='8'],
-  .malloy-dashboard .dashboard-item[data-span='9'],
-  .malloy-dashboard .dashboard-item[data-span='10'],
-  .malloy-dashboard .dashboard-item[data-span='11'],
-  .malloy-dashboard .dashboard-item[data-span='12'] {
+  .malloy-dashboard .dashboard-grid .dashboard-item[data-span='8'],
+  .malloy-dashboard .dashboard-grid .dashboard-item[data-span='9'],
+  .malloy-dashboard .dashboard-grid .dashboard-item[data-span='10'],
+  .malloy-dashboard .dashboard-grid .dashboard-item[data-span='11'],
+  .malloy-dashboard .dashboard-grid .dashboard-item[data-span='12'] {
     grid-column: 1 / -1 !important;
   }
 }

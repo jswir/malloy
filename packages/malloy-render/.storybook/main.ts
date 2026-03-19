@@ -57,6 +57,15 @@ const config: StorybookConfig = {
           ),
         },
       },
+      optimizeDeps: {
+        include: [
+          '@duckdb/duckdb-wasm',
+          'web-worker',
+          'apache-arrow',
+          '@storybook/theming/create',
+        ],
+        exclude: ['@motherduck/wasm-client'],
+      },
       server: {
         // Disable HMR for now, as we can't seem to get malloy core nor web component to fully support it
         hmr: false,
