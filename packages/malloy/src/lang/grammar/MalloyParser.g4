@@ -29,6 +29,7 @@ malloyDocument: (malloyStatement | SEMI)* EOF;
 
 malloyStatement
   : defineSourceStatement
+  | defineUserTypeStatement
   | defineQuery
   | importStatement
   | runStatement
@@ -39,6 +40,42 @@ malloyStatement
 
 defineSourceStatement
   : tags SOURCE sourcePropertyList
+  ;
+
+defineUserTypeStatement
+  : tags TYPE userTypePropertyList
+  ;
+
+userTypePropertyList
+  : userTypeDefinition (COMMA? userTypeDefinition)* COMMA?
+  ;
+
+userTypeDefinition
+  : tags userTypeNameDef isDefine userTypeExpr
+  ;
+
+userTypeNameDef: id;
+
+userTypeExpr
+  : userTypeName                            # userTypeRef
+  | userTypeShape                            # userTypeInline
+  | userTypeName EXTEND userTypeShape          # userTypeExtend
+  ;
+
+userTypeShape
+  : OCURLY userTypeField (COMMA userTypeField)* COMMA? CCURLY
+  ;
+
+userTypeField
+  : tags id DOUBLECOLON userTypeFieldType
+  ;
+
+userTypeFieldType
+  : malloyBasicType
+  | userTypeShape
+  | userTypeFieldType OBRACK CBRACK
+  | shortString
+  | userTypeName
   ;
 
 defineQuery
@@ -136,6 +173,10 @@ sqlSource
 
 exploreTable
   : connectionId DOT TABLE OPAREN tablePath CPAREN
+  ;
+
+virtualSource
+  : connectionId DOT VIRTUAL OPAREN shortString CPAREN
   ;
 
 connectionId
@@ -273,9 +314,18 @@ sqExpr
   | sqExpr ARROW segExpr                                     # SQArrow
   | sqExpr (INCLUDE includeBlock)? EXTEND exploreProperties  # SQExtendedSource
   | sqExpr INCLUDE includeBlock                              # SQInclude
+  | sqExpr DOUBLECOLON sourceTypeConstraints                            # SQTypedSource
   | exploreTable                                             # SQTable
+  | virtualSource                                            # SQVirtual
   | sqlSource                                                # SQSQL
   ;
+
+sourceTypeConstraints
+  : userTypeName
+  | OPAREN userTypeName (COMMA userTypeName)* CPAREN
+  ;
+
+userTypeName: id;
 
 includeBlock
   : OCURLY (includeItem | SEMI)* CCURLY

@@ -1129,3 +1129,126 @@ describe('block annotations', () => {
     });
   });
 });
+
+describe('user type annotation', () => {
+  const experimental = '##! experimental.virtual_source\n';
+
+  function userTypeModel(src: string) {
+    return new TestTranslator(experimental + src);
+  }
+
+  test('annotation on user type and fields', () => {
+    const m = userTypeModel(`
+      # struct note
+      type:
+      # def note
+      Noted is {
+        # field note
+        name :: string,
+        age :: number
+      }
+    `);
+    expect(m).toTranslate();
+    const shape = m.getUserTypeDef('Noted');
+    expect(shape!.annotation).matchesAnnotation({
+      blockNotes: ['# struct note\n'],
+      notes: ['# def note\n'],
+    });
+    expect(shape!.fields[0].annotation).matchesAnnotation({
+      notes: ['# field note\n'],
+    });
+    expect(shape!.fields[1].annotation).toBeUndefined();
+  });
+
+  test('annotation inherited from referenced user type', () => {
+    const m = userTypeModel(`
+      # base note
+      type: Base is { x :: string }
+      type: Wrapper is {
+        data :: Base
+      }
+    `);
+    expect(m).toTranslate();
+    const wrapper = m.getUserTypeDef('Wrapper');
+    expect(wrapper!.fields[0].annotation).matchesAnnotation({
+      inherits: {
+        blockNotes: ['# base note\n'],
+      },
+    });
+  });
+
+  test('field annotation merged with inherited user type annotation', () => {
+    const m = userTypeModel(`
+      # base note
+      type: Base is { x :: string }
+      type: Wrapper is {
+        # field note
+        data :: Base
+      }
+    `);
+    expect(m).toTranslate();
+    const wrapper = m.getUserTypeDef('Wrapper');
+    expect(wrapper!.fields[0].annotation).matchesAnnotation({
+      notes: ['# field note\n'],
+      inherits: {
+        blockNotes: ['# base note\n'],
+      },
+    });
+  });
+
+  test('field annotations preserved when :: applies user type to virtual source', () => {
+    const m = userTypeModel(`
+        type: S is {
+          # noted field
+          astr :: string
+        }
+        source: v is _db_.virtual('t')::S
+      `);
+    expect(m).toTranslate();
+    const src = m.getSourceDef('v')!;
+    const field = src.fields.find(f => f.name === 'astr')!;
+    expect(field.annotation).matchesAnnotation({
+      notes: ['# noted field\n'],
+    });
+  });
+
+  test('user type field annotations applied to table source fields', () => {
+    const m = userTypeModel(`
+      type: S is {
+        # currency
+        astr :: string
+      }
+      source: typed is a::S
+    `);
+    expect(m).toTranslate();
+    const src = m.getSourceDef('typed')!;
+    const field = src.fields.find(f => f.name === 'astr')!;
+    expect(field.annotation).matchesAnnotation({
+      notes: ['# currency\n'],
+    });
+  });
+
+  test('user type annotation merges with existing field annotation', () => {
+    const m = userTypeModel(`
+      type: S1 is {
+        # from s1
+        astr :: string
+      }
+      type: S2 is {
+        # from s2
+        astr :: string
+      }
+      source: src1 is _db_.virtual('t')::S1
+      source: src2 is src1::S2
+    `);
+    expect(m).toTranslate();
+    const src = m.getSourceDef('src2')!;
+    const field = src.fields.find(f => f.name === 'astr')!;
+    expect(field.annotation).matchesAnnotation({
+      notes: ['# from s1\n'],
+      inherits: {
+        notes: ['# from s2\n'],
+      },
+    });
+  });
+});

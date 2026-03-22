@@ -135,6 +135,12 @@ export class NamedSource extends Source {
         `Cannot construct a source from a connection '${this.refName}'`
       );
       return;
+    } else if (entry.type === 'userType') {
+      this.logError(
+        'invalid-source-from-user-type',
+        `Cannot construct a source from a user type '${this.refName}'`
+      );
+      return;
     } else {
       this.document()?.checkExperimentalDialect(this, entry.dialect);
       if (isSourceDef(entry)) {

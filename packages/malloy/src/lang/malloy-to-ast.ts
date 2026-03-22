@@ -85,6 +85,15 @@ class IgnoredElement extends ast.MalloyElement {
   }
 }
 
+interface IndirectUserType {
+  namedUserType: string;
+  arrayDepth: number;
+}
+type UserTypeFieldTypeResult = AtomicTypeDef | IndirectUserType;
+function isIndirectUserType(t: UserTypeFieldTypeResult): t is IndirectUserType {
+  return 'namedUserType' in t;
+}
+
 const DEFAULT_COMPILER_FLAGS = [];
 
 type HasAnnotations = ParserRuleContext & {
@@ -394,6 +403,136 @@ export class MalloyToAST
     return defList;
   }
 
+  visitDefineUserTypeStatement(
+    pcx: parse.DefineUserTypeStatementContext
+  ): ast.DefineUserTypeList {
+    this.inExperiment('virtual_source', pcx);
+    const defsCx = pcx.userTypePropertyList().userTypeDefinition();
+    const defs = defsCx.map(dcx => this.visitUserTypeDefinition(dcx));
+    const blockNotes = this.getNotes(pcx.tags());
+    const defList = new ast.DefineUserTypeList(defs);
+    defList.extendNote({blockNotes});
+    return defList;
+  }
+
+  visitUserTypeDefinition(
+    pcx: parse.UserTypeDefinitionContext
+  ): ast.DefineUserType {
+    const shape = this.getUserTypeShapeExpr(pcx.userTypeExpr());
+    const def = new ast.DefineUserType(
+      getId(pcx.userTypeNameDef()),
+      shape,
+      true
+    );
+    const notes = this.getNotes(pcx.tags()).concat(
+      this.getIsNotes(pcx.isDefine())
+    );
+    def.extendNote({notes});
+    return this.astAt(def, pcx);
+  }
+
+  getUserTypeShapeExpr(cx: parse.UserTypeExprContext): ast.UserTypeShape {
+    const result = this.visit(cx);
+    if (result instanceof ast.UserTypeShape) {
+      return result;
+    }
+    throw this.internalError(cx, 'Expected a user type shape');
+  }
+
+  visitUserTypeRef(pcx: parse.UserTypeRefContext): ast.ExtendedUserTypeShape {
+    const name = idToStr(pcx.userTypeName().id());
+    return this.astAt(new ast.ExtendedUserTypeShape([], name), pcx);
+  }
+
+  visitUserTypeInline(pcx: parse.UserTypeInlineContext): ast.UserTypeShape {
+    return this.getUserTypeShape(pcx.userTypeShape());
+  }
+
+  visitUserTypeExtend(
+    pcx: parse.UserTypeExtendContext
+  ): ast.ExtendedUserTypeShape {
+    const baseName = idToStr(pcx.userTypeName().id());
+    const members = pcx
+      .userTypeShape()
+      .userTypeField()
+      .map(f => this.getUserTypeField(f));
+    return this.astAt(new ast.ExtendedUserTypeShape(members, baseName), pcx);
+  }
+
+  getUserTypeShape(pcx: parse.UserTypeShapeContext): ast.UserTypeShape {
+    const members = pcx.userTypeField().map(f => this.getUserTypeField(f));
+    return this.astAt(new ast.UserTypeShape(members), pcx);
+  }
+
+  getUserTypeField(pcx: parse.UserTypeFieldContext): ast.UserTypeMember {
+    const name = getId(pcx);
+    const typeResult = this.getUserTypeFieldType(pcx.userTypeFieldType());
+    let member: ast.UserTypeMember;
+    if (isIndirectUserType(typeResult)) {
+      member = new ast.UserTypeMemberIndirect(
+        name,
+        typeResult.namedUserType,
+        typeResult.arrayDepth
+      );
+    } else {
+      member = new ast.UserTypeMemberDef(name, typeResult);
+    }
+    const notes = this.getNotes(pcx.tags());
+    member.extendNote({notes});
+    return this.astAt(member, pcx);
+  }
+
+  getUserTypeFieldType(
+    pcx: parse.UserTypeFieldTypeContext
+  ): UserTypeFieldTypeResult {
+    const basicCx = pcx.malloyBasicType();
+    if (basicCx) {
+      return this.getBasicMalloyType(basicCx);
+    }
+    const bodyCx = pcx.userTypeShape();
+    if (bodyCx) {
+      const fields = bodyCx.userTypeField().map(fieldCx => {
+        const name = getId(fieldCx);
+        const fieldType = this.getUserTypeFieldType(
+          fieldCx.userTypeFieldType()
+        );
+        if (isIndirectUserType(fieldType)) {
+          this.contextError(
+            fieldCx,
+            'unexpected-malloy-type',
+            `Named user type reference '${fieldType.namedUserType}' cannot be used as an inline record field type`
+          );
+          return mkFieldDef({type: 'error'}, name);
+        }
+        return mkFieldDef(fieldType, name);
+      });
+      return {type: 'record', fields};
+    }
+    const innerCx = pcx.userTypeFieldType();
+    if (innerCx) {
+      const inner = this.getUserTypeFieldType(innerCx);
+      if (isIndirectUserType(inner)) {
+        return {...inner, arrayDepth: inner.arrayDepth + 1};
+      }
+      return mkArrayTypeDef(inner);
+    }
+    const strCx = pcx.shortString();
+    if (strCx) {
+      const rawType = getShortString(strCx);
+      return {type: 'sql native', rawType};
+    }
+    const nameCx = pcx.userTypeName();
+    if (nameCx) {
+      return {namedUserType: idToStr(nameCx.id()), arrayDepth: 0};
+    }
+    this.contextError(
+      pcx,
+      'unexpected-malloy-type',
+      'Expected a user type field type'
+    );
+    return {type: 'error'};
+  }
+
   getSourceParameter(
     pcx: parse.SourceParameterContext
   ): ast.HasParameter | null {
@@ -492,6 +631,17 @@ export class MalloyToAST
     const tablePath = this.getPlainStringFrom(pcx.tablePath());
     return this.astAt(
       new ast.TableMethodSource(connectionName, tablePath),
+      pcx
+    );
+  }
+
+  visitVirtualSource(pcx: parse.VirtualSourceContext): ast.VirtualTableSource {
+    this.inExperiment('virtual_source', pcx);
+    const connId = pcx.connectionId();
+    const connectionName = this.astAt(this.getModelEntryName(connId), connId);
+    const virtualName = getShortString(pcx.shortString());
+    return this.astAt(
+      new ast.VirtualTableSource(connectionName, virtualName),
       pcx
     );
   }
@@ -2002,6 +2152,16 @@ export class MalloyToAST
     return this.astAt(src, pcx);
   }
 
+  visitSQTypedSource(pcx: parse.SQTypedSourceContext) {
+    this.inExperiment('virtual_source', pcx);
+    const sqSrc = this.getSqExpr(pcx.sqExpr());
+    const userTypes = pcx
+      .sourceTypeConstraints()
+      .userTypeName()
+      .map(nameCx => this.astAt(this.getModelEntryName(nameCx), nameCx));
+    return this.astAt(new ast.SQTypedSource(sqSrc, userTypes), pcx);
+  }
+
   getIncludeItems(pcx: parse.IncludeBlockContext): ast.IncludeItem[] {
     this.inExperiment('access_modifiers', pcx);
     return pcx
@@ -2178,6 +2338,12 @@ export class MalloyToAST
       return this.astAt(sqTable, pcx);
     }
     return new ErrorNode();
+  }
+
+  visitSQVirtual(pcx: parse.SQVirtualContext) {
+    const theVirtual = this.visitVirtualSource(pcx.virtualSource());
+    const sqVirtual = new ast.SQSource(theVirtual);
+    return this.astAt(sqVirtual, pcx);
   }
 
   visitSQSQL(pcx: parse.SQSQLContext) {

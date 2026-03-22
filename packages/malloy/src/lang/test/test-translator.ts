@@ -38,10 +38,12 @@ import type {
   TableSourceDef,
   SQLSourceDef,
   NumberTypeDef,
+  UserTypeDef,
 } from '../../model/malloy_types';
 import {
   isQuerySegment,
   isSourceDef,
+  isUserTypeDef,
   mkArrayDef,
 } from '../../model/malloy_types';
 import {ExpressionDef, MalloyElement} from '../ast';
@@ -468,6 +470,8 @@ export class TestTranslator extends MalloyTranslator {
         actualSchema
       );
     }
+    this.connectionDialectZone.define('_db_', TEST_DIALECT);
+    this.connectionDialectZone.define('_bq_', 'standardsql');
   }
 
   translate(): TranslateResponse {
@@ -571,6 +575,15 @@ export class TestTranslator extends MalloyTranslator {
       if (s?.type === 'query') {
         return s;
       }
+    }
+    return undefined;
+  }
+
+  getUserTypeDef(name: string): UserTypeDef | undefined {
+    const t = this.translate().modelDef;
+    const s = t?.contents[name];
+    if (s && isUserTypeDef(s)) {
+      return s;
     }
     return undefined;
   }

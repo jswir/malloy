@@ -261,6 +261,9 @@ type MessageParameterTypes = {
   'invalid-source-from-query': string;
   'invalid-source-from-function': string;
   'invalid-source-from-connection': string;
+  'invalid-source-from-user-type': string;
+  'user-type-not-found': string;
+  'not-a-user-type': string;
   'invalid-source-source': string;
   'unnamed-source-argument': string;
   'duplicate-source-argument': string;
@@ -287,10 +290,11 @@ type MessageParameterTypes = {
   'failed-to-compute-arrow-source': string;
   'failed-to-compute-source-from-query': string;
   'failed-to-compute-source-to-extend': string;
+  'failed-to-compute-source-to-type': string;
   'cannot-use-as-query': string;
   'source-or-query-not-found': string;
   'illegal-query-argument': string;
-  'cannot-use-struct-as-source': string;
+  'cannot-use-user-type-as-source': string;
   'illegal-refinement-of-source': string;
   'invalid-source-as-query': string;
   'invalid-sql-source-interpolation': string;
@@ -298,6 +302,13 @@ type MessageParameterTypes = {
   'query-definition-name-conflict': string;
   'query-definition-from-non-query': string;
   'source-definition-name-conflict': string;
+  'user-type-definition-name-conflict': string;
+  'virtual-source-not-yet-implemented': string;
+  'virtual-source-missing-user-type-refs': string;
+  'virtual-source-unknown-dialect': string;
+  'user-type-field-missing': string;
+  'user-type-type-mismatch': string;
+  'user-type-field-conflict': string;
   'parameter-name-conflict': string;
   'parameter-shadowing-field': string;
   'invalid-import-url': string;

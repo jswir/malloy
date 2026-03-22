@@ -28,6 +28,7 @@ import {
   markSource,
   errorMessage,
   warningMessage,
+  error,
   getFieldDef,
 } from './test-translator';
 import './parse-expects';
@@ -1277,5 +1278,196 @@ describe('source:', () => {
     test('toString as source name', () => {
       expect('source: toString is a').toTranslate();
     });
+  });
+});
+
+describe('virtual sources', () => {
+  const experimental = '##! experimental.virtual_source\n';
+
+  function vsModel(src: string) {
+    return new TestTranslator(experimental + src);
+  }
+
+  test('basic virtual source', () => {
+    const m = vsModel(`
+      source: v is _db_.virtual('my_table')
+    `);
+    expect(m).toTranslate();
+    const src = m.getSourceDef('v');
+    expect(src).toBeDefined();
+    expect(src!.type).toBe('virtual');
+    expect(src!.name).toBe('my_table');
+    expect(src!.connection).toBe('_db_');
+    expect(src!.fields).toEqual([]);
+  });
+
+  test('virtual source with single user type shape', () => {
+    const m = vsModel(`
+      type: Schema is { name :: string, age :: number }
+      source: v is _db_.virtual('t')::Schema
+    `);
+    expect(m).toTranslate();
+    const src = m.getSourceDef('v');
+    expect(src).toBeDefined();
+    expect(src!.type).toBe('virtual');
+    expect(src!.fields.map(f => f.name)).toEqual(['name', 'age']);
+  });
+
+  test('virtual source with multiple user type shapes', () => {
+    const m = vsModel(`
+      type: Names is { name :: string }
+      type: Ages is { age :: number }
+      source: v is _db_.virtual('t')::(Names, Ages)
+    `);
+    expect(m).toTranslate();
+    const src = m.getSourceDef('v');
+    expect(src).toBeDefined();
+    expect(src!.fields.map(f => f.name)).toEqual(['name', 'age']);
+  });
+
+  test('virtual source gets fields from user type shapes', () => {
+    const m = vsModel(`
+      type: Schema is { name :: string, score :: number }
+      source: v is _db_.virtual('t')::Schema
+    `);
+    expect(m).toTranslate();
+    const src = m.getSourceDef('v');
+    expect(src!.fields[0]).toEqual(
+      expect.objectContaining({name: 'name', type: 'string'})
+    );
+    expect(src!.fields[1]).toEqual(
+      expect.objectContaining({name: 'score', type: 'number'})
+    );
+  });
+
+  test('virtual source with unknown dialect', () => {
+    const m = vsModel(`
+      source: v is unknown_conn.virtual('t')
+    `);
+    m.update({
+      errors: {connectionDialects: {unknown_conn: 'connection not found'}},
+    });
+    expect(m).toLog(error('virtual-source-unknown-dialect'));
+  });
+
+  test('non-connection name for virtual source', () => {
+    const m = vsModel(`
+      source: v is a.virtual('t')
+    `);
+    m.update({
+      errors: {connectionDialects: {a: 'a is not a connection'}},
+    });
+    expect(m).toLog(error('invalid-connection-for-table-source'));
+  });
+});
+
+describe('typed source (::)', () => {
+  const experimental = '##! experimental.virtual_source\n';
+
+  function tsModel(src: string) {
+    return new TestTranslator(experimental + src);
+  }
+
+  test('source :: user type hides fields not in shape', () => {
+    const m = tsModel(`
+      type: Narrow is { astr :: string }
+      source: typed is a::Narrow
+    `);
+    expect(m).toTranslate();
+    const src = m.getSourceDef('typed')!;
+    expect(getFieldDef(src, 'astr').accessModifier).toBeUndefined();
+    expect(getFieldDef(src, 'ai').accessModifier).toBe('internal');
+  });
+
+  test('source :: user type with all fields present', () => {
+    const m = tsModel(`
+      type: HasStr is { astr :: string }
+      source: typed is a::HasStr
+    `);
+    expect(m).toTranslate();
+  });
+
+  test('source :: with multiple compatible shapes', () => {
+    const m = tsModel(`
+      type: S1 is { astr :: string }
+      type: S2 is { ai :: number }
+      source: typed is a::(S1, S2)
+    `);
+    expect(m).toTranslate();
+    const src = m.getSourceDef('typed')!;
+    expect(getFieldDef(src, 'astr').accessModifier).toBeUndefined();
+    expect(getFieldDef(src, 'ai').accessModifier).toBeUndefined();
+    expect(getFieldDef(src, 'af').accessModifier).toBe('internal');
+  });
+
+  test('typed source used in a query', () => {
+    const m = tsModel(`
+      type: S is { astr :: string }
+      run: a::S -> { select: astr }
+    `);
+    expect(m).toTranslate();
+  });
+
+  test(':: references undefined user type', () => {
+    expect(
+      tsModel(`
+      source: typed is a::NoSuch
+    `)
+    ).toLog(error('user-type-not-found'));
+  });
+
+  test(':: references non-user-type name', () => {
+    expect(
+      tsModel(`
+      source: typed is a::b
+    `)
+    ).toLog(error('not-a-user-type'));
+  });
+
+  test(':: on non-virtual source missing required field', () => {
+    expect(
+      tsModel(`
+      type: S is { not_a_real_field :: string }
+      source: typed is a::S
+    `)
+    ).toLog(error('user-type-field-missing'));
+  });
+
+  test(':: with conflicting field types across shapes', () => {
+    expect(
+      tsModel(`
+      type: S1 is { astr :: string }
+      type: S2 is { astr :: number }
+      source: typed is a::(S1, S2)
+    `)
+    ).toLog(error('user-type-field-conflict'));
+  });
+
+  test(':: type mismatch is an error', () => {
+    expect(
+      tsModel(`
+      type: S is { astr :: number }
+      source: typed is a::S
+    `)
+    ).toLog(error('user-type-type-mismatch'));
+  });
+
+  test(':: does not validate types on virtual sources', () => {
+    const m = tsModel(`
+      type: S is { x :: string }
+      source: v is _db_.virtual('t')::S
+    `);
+    expect(m).toTranslate();
+  });
+
+  test(':: does not hide non-intrinsic fields', () => {
+    const m = tsModel(`
+      type: S is { astr :: string }
+      source: typed is ab::S
+    `);
+    expect(m).toTranslate();
+    const src = m.getSourceDef('typed')!;
+    // measure acount and view aturtle from ab should not be hidden
+    expect(getFieldDef(src, 'acount').accessModifier).toBeUndefined();
   });
 });

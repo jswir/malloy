@@ -542,7 +542,8 @@ export class Document extends MalloyElement implements NameSpace {
         if (
           isSourceDef(entry) ||
           entry.type === 'query' ||
-          entry.type === 'function'
+          entry.type === 'function' ||
+          entry.type === 'userType'
         ) {
           const exported = extendingModelDef.exports.includes(nm);
           this.setEntry(nm, {entry, exported});
@@ -605,15 +606,23 @@ export class Document extends MalloyElement implements NameSpace {
     }
     for (const [name, modelEntry] of this.documentModel) {
       const entryDef = modelEntry.entry;
-      if (isSourceDef(entryDef) || entryDef.type === 'query') {
+      if (
+        isSourceDef(entryDef) ||
+        entryDef.type === 'query' ||
+        entryDef.type === 'userType'
+      ) {
         if (modelEntry.exported) {
           def.exports.push(name);
         }
-        const newEntry = {...entryDef};
-        if (newEntry.modelAnnotation === undefined && def.annotation) {
-          newEntry.modelAnnotation = def.annotation;
+        if (entryDef.type === 'userType') {
+          def.contents[name] = {...entryDef};
+        } else {
+          const newEntry = {...entryDef};
+          if (newEntry.modelAnnotation === undefined && def.annotation) {
+            newEntry.modelAnnotation = def.annotation;
+          }
+          def.contents[name] = newEntry;
         }
-        def.contents[name] = newEntry;
       }
     }
     // Copy the accumulated sourceRegistry
