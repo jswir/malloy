@@ -268,40 +268,65 @@ export function generateBarChartVegaSpecV2(
    *
    *************************************/
 
-  const yAxis = !chartSettings.yAxis.hidden
-    ? createMeasureAxis({
-        type: 'y',
-        title: settings.yChannel.fields
-          .map(f => explore.fieldAt(f).name)
-          .join(', '),
-        tickCount: chartSettings.yAxis.tickCount ?? 'ceil(height/40)',
-        labelLimit: chartSettings.yAxis.width + 10,
-        // Use first y number style for axis labels
-        fieldPath: yFieldPath,
-        fieldRef: yRef,
-        brushMeasureRangeSourceId,
-        axisSettings: chartSettings.yAxis,
-        vegaConfig,
-      })
-    : null;
+  const horizontal = settings.horizontal;
+  const measureAxisTitle = settings.yChannel.fields
+    .map(f => explore.fieldAt(f).name)
+    .join(', ');
+
+  const yAxis = chartSettings.yAxis.hidden
+    ? null
+    : horizontal
+      ? {
+          axis: {
+            orient: 'bottom' as const,
+            scale: 'yscale',
+            title: measureAxisTitle,
+            tickCount: chartSettings.yAxis.tickCount ?? 'ceil(width/80)',
+            labelOverlap: 'greedy' as const,
+            labelSeparation: 4,
+            encode: {
+              labels: {
+                enter: {
+                  text: {
+                    signal: `renderMalloyNumber(malloyExplore, '${yFieldPath}', datum.value)`,
+                  },
+                },
+              },
+            },
+          },
+          interactiveMarks: [] as Mark[],
+          interactiveSignals: [] as Signal[],
+          brushMeasureEvents: [] as {events: string; update: string}[],
+        }
+      : createMeasureAxis({
+          type: 'y',
+          title: measureAxisTitle,
+          tickCount: chartSettings.yAxis.tickCount ?? 'ceil(height/40)',
+          labelLimit: chartSettings.yAxis.width + 10,
+          fieldPath: yFieldPath,
+          fieldRef: yRef,
+          brushMeasureRangeSourceId,
+          axisSettings: chartSettings.yAxis,
+          vegaConfig,
+        });
 
   // This separate each group set of bars, whether series or single bars
   const barGroupPadding = 0.25;
   // This separates bars within a group
   const barPadding = 0;
 
-  // Spacing for bar groups, depending on whether grouped or not
-  // Manually calculating offsets and widths for bars because we need x highlight event targets to be full bandwidth
-  const xOffset: VegaSignalRef = {signal: ''};
-  let xWidth: EncodeEntry['width'] = {};
+  // Spacing for bar groups — orientation-agnostic names because
+  // "category axis" is x when vertical and y when horizontal.
+  const catOffset: VegaSignalRef = {signal: ''};
+  let catSize: EncodeEntry['width'] = {};
   if (isGrouping) {
-    xOffset.signal = `scale('xOffset', datum.series)+bandwidth("xscale")*${
+    catOffset.signal = `scale('xOffset', datum.series)+bandwidth("xscale")*${
       barGroupPadding / 2
     }`;
-    xWidth = {'scale': 'xOffset', 'band': 1 - barPadding};
+    catSize = {'scale': 'xOffset', 'band': 1 - barPadding};
   } else {
-    xOffset.signal = `bandwidth("xscale")*${barGroupPadding / 2}`;
-    xWidth = {'scale': 'xscale', 'band': 1 - barGroupPadding};
+    catOffset.signal = `bandwidth("xscale")*${barGroupPadding / 2}`;
+    catSize = {'scale': 'xscale', 'band': 1 - barGroupPadding};
   }
 
   // Create groups for each unique x value via faceting
@@ -338,12 +363,19 @@ export function generateBarChartVegaSpecV2(
     type: 'group',
     interactive: false,
     encode: {
-      enter: {
-        x: {
-          scale: 'xscale',
-          field: 'x',
-        },
-      },
+      enter: horizontal
+        ? {
+            y: {
+              scale: 'xscale',
+              field: 'x',
+            },
+          }
+        : {
+            x: {
+              scale: 'xscale',
+              field: 'x',
+            },
+          },
     },
     marks: [],
   };
@@ -358,19 +390,33 @@ export function generateBarChartVegaSpecV2(
     },
     zindex: 2,
     encode: {
-      enter: {
-        x: {
-          offset: xOffset,
-        },
-        width: xWidth,
-        y: {
-          scale: 'yscale',
-          field: settings.isStack ? 'y0' : 'y',
-        },
-        y2: settings.isStack
-          ? {'scale': 'yscale', 'field': 'y1'}
-          : {'scale': 'yscale', 'value': 0},
-      },
+      enter: horizontal
+        ? {
+            y: {
+              offset: catOffset,
+            },
+            height: catSize,
+            x: {
+              scale: 'yscale',
+              field: settings.isStack ? 'y0' : 'y',
+            },
+            x2: settings.isStack
+              ? {'scale': 'yscale', 'field': 'y1'}
+              : {'scale': 'yscale', 'value': 0},
+          }
+        : {
+            x: {
+              offset: catOffset,
+            },
+            width: catSize,
+            y: {
+              scale: 'yscale',
+              field: settings.isStack ? 'y0' : 'y',
+            },
+            y2: settings.isStack
+              ? {'scale': 'yscale', 'field': 'y1'}
+              : {'scale': 'yscale', 'value': 0},
+          },
       update: {
         fill: {
           scale: 'color',
@@ -409,16 +455,27 @@ export function generateBarChartVegaSpecV2(
     },
     zindex: 1,
     encode: {
-      enter: {
-        x: {
-          value: 0,
-        },
-        width: {scale: 'xscale', band: 1},
-        y: {
-          value: 0,
-        },
-        y2: {signal: 'height'},
-      },
+      enter: horizontal
+        ? {
+            y: {
+              value: 0,
+            },
+            height: {scale: 'xscale', band: 1},
+            x: {
+              value: 0,
+            },
+            x2: {signal: 'width'},
+          }
+        : {
+            x: {
+              value: 0,
+            },
+            width: {scale: 'xscale', band: 1},
+            y: {
+              value: 0,
+            },
+            y2: {signal: 'height'},
+          },
       update: {
         fill: {
           value: '#4c72ba',
@@ -663,10 +720,17 @@ export function generateBarChartVegaSpecV2(
       contains: 'padding',
     },
     data: [valuesData],
-    padding: {
-      ...chartSettings.padding,
-      bottom: xAxisSettings.hidden ? 0 : xAxisSettings.height,
-    },
+    padding: horizontal
+      ? {
+          ...chartSettings.padding,
+          // Swap: category axis padding moves to left, measure axis to bottom
+          left: xAxisSettings.hidden ? 0 : xAxisSettings.height,
+          bottom: chartSettings.padding.left,
+        }
+      : {
+          ...chartSettings.padding,
+          bottom: xAxisSettings.hidden ? 0 : xAxisSettings.height,
+        },
     scales: [
       {
         name: 'xscale',
@@ -674,14 +738,14 @@ export function generateBarChartVegaSpecV2(
         domain: shouldShareXDomain
           ? [...dataLimits.barValuesToPlot]
           : {data: 'values', field: 'x'},
-        range: 'width',
+        range: horizontal ? 'height' : 'width',
         paddingOuter: 0.05,
         round: true,
       },
       {
         name: 'yscale',
         nice: true,
-        range: 'height',
+        range: horizontal ? 'width' : 'height',
         domain: settings.isStack
           ? {data: 'values', field: 'y1'}
           : chartSettings.yScale.domain ?? {data: 'values', field: 'y'},
@@ -713,12 +777,14 @@ export function generateBarChartVegaSpecV2(
 
     axes: [
       {
-        orient: 'bottom',
+        orient: horizontal ? 'left' : 'bottom',
         scale: 'xscale',
         title: xField.name,
         labelOverlap: 'greedy',
         labelSeparation: 4,
-        ...chartSettings.xAxis,
+        // Only spread bottom-axis-specific settings (labelAngle, labelBaseline,
+        // minExtent, maxExtent) for vertical mode; they break a left axis.
+        ...(horizontal ? {} : chartSettings.xAxis),
         encode: {
           labels: {
             enter: {
