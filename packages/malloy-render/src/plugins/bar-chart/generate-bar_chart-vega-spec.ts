@@ -275,40 +275,20 @@ export function generateBarChartVegaSpecV2(
 
   const yAxis = chartSettings.yAxis.hidden
     ? null
-    : horizontal
-      ? {
-          axis: {
-            orient: 'bottom' as const,
-            scale: 'yscale',
-            title: measureAxisTitle,
-            tickCount: chartSettings.yAxis.tickCount ?? 'ceil(width/80)',
-            labelOverlap: 'greedy' as const,
-            labelSeparation: 4,
-            encode: {
-              labels: {
-                enter: {
-                  text: {
-                    signal: `renderMalloyNumber(malloyExplore, '${yFieldPath}', datum.value)`,
-                  },
-                },
-              },
-            },
-          },
-          interactiveMarks: [] as Mark[],
-          interactiveSignals: [] as Signal[],
-          brushMeasureEvents: [] as {events: string; update: string}[],
-        }
-      : createMeasureAxis({
-          type: 'y',
-          title: measureAxisTitle,
-          tickCount: chartSettings.yAxis.tickCount ?? 'ceil(height/40)',
-          labelLimit: chartSettings.yAxis.width + 10,
-          fieldPath: yFieldPath,
-          fieldRef: yRef,
-          brushMeasureRangeSourceId,
-          axisSettings: chartSettings.yAxis,
-          vegaConfig,
-        });
+    : createMeasureAxis({
+        type: 'y',
+        title: measureAxisTitle,
+        tickCount: horizontal
+          ? chartSettings.yAxis.tickCount ?? 'ceil(width/80)'
+          : chartSettings.yAxis.tickCount ?? 'ceil(height/40)',
+        labelLimit: chartSettings.yAxis.width + 10,
+        fieldPath: yFieldPath,
+        fieldRef: yRef,
+        brushMeasureRangeSourceId,
+        horizontal,
+        axisSettings: chartSettings.yAxis,
+        vegaConfig,
+      });
 
   // This separate each group set of bars, whether series or single bars
   const barGroupPadding = 0.25;
@@ -328,6 +308,12 @@ export function generateBarChartVegaSpecV2(
     catOffset.signal = `bandwidth("xscale")*${barGroupPadding / 2}`;
     catSize = {'scale': 'xscale', 'band': 1 - barGroupPadding};
   }
+
+  // Domain for the series grouping scale (shared between top-level xOffset and nested catPos)
+  const seriesDomain =
+    isDimensionalSeries && shouldShareSeriesDomain && seriesSet
+      ? [...seriesSet!]
+      : {data: 'x_facet', field: 'series'};
 
   // Create groups for each unique x value via faceting
   const groupMark: GroupMark = {
@@ -362,6 +348,25 @@ export function generateBarChartVegaSpecV2(
     ],
     type: 'group',
     interactive: false,
+    // For horizontal grouped bars, override the group's height signal and add a
+    // nested band scale so bars can be positioned within the category band.
+    // This follows the canonical Vega pattern for horizontal grouped bar charts.
+    ...(horizontal && isGrouping
+      ? {
+          signals: [
+            {name: 'height', update: "bandwidth('xscale')"},
+          ],
+          scales: [
+            {
+              name: 'catPos',
+              type: 'band' as const,
+              range: 'height' as const,
+              paddingOuter: barGroupPadding / 2,
+              domain: seriesDomain,
+            },
+          ],
+        }
+      : {}),
     encode: {
       enter: horizontal
         ? {
@@ -391,19 +396,26 @@ export function generateBarChartVegaSpecV2(
     zindex: 2,
     encode: {
       enter: horizontal
-        ? {
-            y: {
-              offset: catOffset,
-            },
-            height: catSize,
-            x: {
-              scale: 'yscale',
-              field: settings.isStack ? 'y0' : 'y',
-            },
-            x2: settings.isStack
-              ? {'scale': 'yscale', 'field': 'y1'}
-              : {'scale': 'yscale', 'value': 0},
-          }
+        ? isGrouping
+          ? {
+              // Horizontal grouped: use nested catPos scale within the group
+              y: {scale: 'catPos', field: 'series'},
+              height: {scale: 'catPos', band: 1},
+              x: {scale: 'yscale', field: 'y'},
+              x2: {scale: 'yscale', value: 0},
+            }
+          : {
+              // Horizontal basic/stacked: use offset pattern
+              y: {offset: catOffset},
+              height: catSize,
+              x: {
+                scale: 'yscale',
+                field: settings.isStack ? 'y0' : 'y',
+              },
+              x2: settings.isStack
+                ? {'scale': 'yscale', 'field': 'y1'}
+                : {'scale': 'yscale', 'value': 0},
+            }
         : {
             x: {
               offset: catOffset,
@@ -723,8 +735,14 @@ export function generateBarChartVegaSpecV2(
     padding: horizontal
       ? {
           ...chartSettings.padding,
-          // Swap: category axis padding moves to left, measure axis to bottom
-          left: xAxisSettings.hidden ? 0 : xAxisSettings.height,
+          // For horizontal bars, the category axis is on the left with horizontal labels.
+          // Use the label text width (+ title space) instead of xAxisSettings.height,
+          // which is designed for rotated bottom-axis labels.
+          left: xAxisSettings.hidden
+            ? 0
+            : xAxisSettings.labelWidth +
+              2 * xAxisSettings.titleSize +
+              xAxisSettings.labelPadding,
           bottom: chartSettings.padding.left,
         }
       : {
