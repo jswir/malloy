@@ -57,6 +57,11 @@ const config: StorybookConfig = {
           ),
         },
       },
+      // Pre-bundle heavy WASM/Arrow deps that Vite's scanner misses in
+      // the monorepo (linked packages aren't crawled for deep imports).
+      // Without this, Storybook throws "module not found" on first load.
+      // @motherduck/wasm-client must be excluded because it ships its own
+      // WASM loader that breaks under Vite's esbuild pre-bundling.
       optimizeDeps: {
         include: [
           '@duckdb/duckdb-wasm',

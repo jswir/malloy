@@ -604,6 +604,42 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   }
 
   // ============================================
+  // Gap = 0: items should be flush with no spacing.
+  // Verifies that gap=0 is not ignored by falsy checks.
+  // ============================================
+  #(story)
+  # dashboard { gap = 0 }
+  view: dashboard_gap_zero is {
+    group_by:
+      category
+    # currency
+    aggregate:
+      # span = 4
+      avg_retail is retail_price.avg()
+      # span = 4
+      sum_retail is retail_price.sum()
+      # span = 4
+      max_retail is retail_price.max()
+    nest:
+      # break
+      # span = 6
+      # bar_chart
+      by_brand_bar is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 8
+      }
+      # span = 6
+      by_brand_table is {
+        group_by: brand
+        aggregate:
+          avg_retail is retail_price.avg()
+          product_count is count()
+        limit: 8
+      }
+  }
+
+  // ============================================
   // Table with nested charts inside a dashboard
   // Should auto-detect sub-nests and get span 12
   // ============================================

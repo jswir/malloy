@@ -13,7 +13,6 @@ import type {Field, RecordCell, RecordOrRepeatedRecordCell} from '@/data_tree';
 import {MalloyViz} from '@/api/malloy-viz';
 import styles from './dashboard.css?raw';
 import {useConfig} from '../render';
-import {getFieldLabel} from '@/component/field-label-utils';
 import type {DashboardNestConfig} from '@/component/tag-configs';
 
 function DashboardItem(props: {
@@ -60,8 +59,8 @@ function DashboardItem(props: {
   if (rendering.renderAs === 'table' && props.maxTableHeight)
     itemStyle['max-height'] = `${props.maxTableHeight}px`;
 
-  const title = getFieldLabel(props.field);
-  const subtitle = props.field.tag.text('subtitle');
+  const title = props.field.getLabel();
+  const subtitle = props.field.getSubtitle();
 
   const gridColumnStyle: Record<string, string> = {};
   if (props.spanOverride) {
@@ -74,7 +73,7 @@ function DashboardItem(props: {
       class="dashboard-item"
       classList={{
         'dashboard-item-measure': !!props.isMeasure,
-        'dashboard-item-borderless': props.field.tag.has('borderless'),
+        'dashboard-item-borderless': props.field.isBorderless(),
       }}
       onClick={config.onClick ? handleClick : undefined}
       style={gridColumnStyle}
@@ -116,31 +115,31 @@ export function Dashboard(props: {
 
   const dashboardStyle = () => {
     const style: Record<string, string> = {};
-    if (gap) style['--malloy-render--dashboard-gap'] = `${gap}px`;
+    if (gap !== undefined) style['--malloy-render--dashboard-gap'] = `${gap}px`;
     return style;
   };
 
   const useGrid = (() => {
-    if (columns || gap) return true;
+    if (columns !== undefined || gap !== undefined) return true;
     return field.fields.some(
       f =>
         !f.isHidden() &&
         !(f.isBasic() && f.wasDimension()) &&
-        f.tag.numeric('span') !== undefined
+        f.getSpan() !== undefined
     );
   })();
 
   const getRowBodyStyle = () => {
     if (!useGrid) return {};
-    if (columns) return {'grid-template-columns': `repeat(${columns}, 1fr)`};
+    if (columns !== undefined) return {'grid-template-columns': `repeat(${columns}, 1fr)`};
     return {'grid-template-columns': 'repeat(12, 1fr)'};
   };
 
   const getItemSpan = (f: Field): number | undefined => {
     if (!useGrid) return undefined;
-    if (columns) return undefined;
-    const explicit = f.tag.numeric('span');
-    if (explicit) return explicit;
+    if (columns !== undefined) return undefined;
+    const explicit = f.getSpan();
+    if (explicit !== undefined) return explicit;
     if (f.isBasic() && f.wasCalculation()) return 3;
     if (f.isNest()) {
       const visibleChildren = f.fields.filter(c => !c.isHidden());
@@ -177,7 +176,7 @@ export function Dashboard(props: {
   const nonDimensionsGrouped = () => {
     const group: Field[][] = [[]];
     for (const f of nonDimensions()) {
-      if (f.tag.has('break')) {
+      if (f.hasBreak()) {
         group.push([]);
       }
       const lastGroup = group.at(-1)!;
@@ -238,7 +237,7 @@ export function Dashboard(props: {
                         {d => (
                           <div class="dashboard-dimension-wrapper">
                             <div class="dashboard-dimension-name">
-                              {getFieldLabel(d)}
+                              {d.getLabel()}
                             </div>
                             <div class="dashboard-dimension-value">
                               {
@@ -292,7 +291,7 @@ export function Dashboard(props: {
                     {d => (
                       <div class="dashboard-dimension-wrapper">
                         <div class="dashboard-dimension-name">
-                          {getFieldLabel(d)}
+                          {d.getLabel()}
                         </div>
                         <div class="dashboard-dimension-value">
                           {

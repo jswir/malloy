@@ -39,6 +39,10 @@ export abstract class FieldBase {
   protected _renderAs = '';
   private _tagConfig: unknown = undefined;
   private _resolvedLabel: string | undefined;
+  private _resolvedSubtitle: string | undefined;
+  private _resolvedSpan: number | undefined;
+  private _resolvedBreak = false;
+  private _resolvedBorderless = false;
   private _columnConfig: unknown = undefined;
 
   // Get the plugins registered for this field
@@ -80,6 +84,45 @@ export abstract class FieldBase {
 
   setResolvedLabel(label: string | undefined): void {
     this._resolvedLabel = label;
+  }
+
+  /**
+   * Get the pre-resolved subtitle for this field.
+   * Resolved at setup time so components never read the subtitle tag.
+   */
+  getSubtitle(): string | undefined {
+    return this._resolvedSubtitle;
+  }
+
+  setResolvedSubtitle(subtitle: string | undefined): void {
+    this._resolvedSubtitle = subtitle;
+  }
+
+  /** Pre-resolved # span value (1–12) for dashboard grid layout. */
+  getSpan(): number | undefined {
+    return this._resolvedSpan;
+  }
+
+  setResolvedSpan(span: number | undefined): void {
+    this._resolvedSpan = span;
+  }
+
+  /** Pre-resolved # break flag for dashboard row breaks. */
+  hasBreak(): boolean {
+    return this._resolvedBreak;
+  }
+
+  setResolvedBreak(value: boolean): void {
+    this._resolvedBreak = value;
+  }
+
+  /** Pre-resolved # borderless flag for dashboard card styling. */
+  isBorderless(): boolean {
+    return this._resolvedBorderless;
+  }
+
+  setResolvedBorderless(value: boolean): void {
+    this._resolvedBorderless = value;
   }
 
   /**
