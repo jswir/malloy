@@ -28,6 +28,7 @@ import type {
   ConnectionOptions,
 } from 'snowflake-sdk';
 import snowflake from 'snowflake-sdk';
+import {createPool} from 'generic-pool';
 import type {Pool, Options as PoolOptions} from 'generic-pool';
 import * as toml from 'toml';
 import * as fs from 'fs';
@@ -79,7 +80,27 @@ export class SnowflakeExecutor {
     setupSQL?: string
   ) {
     this.setupSQL = setupSQL;
-    this.pool_ = snowflake.createPool(connOptions, {
+    const factory = {
+      create: async (): Promise<Connection> => {
+        const conn = await new Promise<Connection>((resolve, reject) => {
+          const c = snowflake.createConnection(connOptions);
+          c.connect(err => {
+            if (err) reject(err);
+            else resolve(c);
+          });
+        });
+        await this._setSessionParams(conn);
+        return conn;
+      },
+      destroy: async (conn: Connection): Promise<void> => {
+        await new Promise<void>(resolve => conn.destroy(() => resolve()));
+      },
+      validate: (conn: Connection): Promise<boolean> => {
+        return Promise.resolve(conn.isUp());
+      },
+    };
+
+    this.pool_ = createPool(factory, {
       ...SnowflakeExecutor.defaultPoolOptions_,
       ...(poolOptions ?? {}),
     });
@@ -194,7 +215,6 @@ export class SnowflakeExecutor {
   }
 
   private async _setSessionParams(conn: Connection) {
-    // set some default session parameters
     // ensure we do not ignore case for quoted identifiers
     await this._execute(
       'ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;',
@@ -225,7 +245,6 @@ export class SnowflakeExecutor {
     timeoutMs?: number
   ): Promise<QueryData> {
     return await this.pool_.use(async (conn: Connection) => {
-      await this._setSessionParams(conn);
       return await this._execute(sqlText, conn, options, timeoutMs);
     });
   }
@@ -236,8 +255,6 @@ export class SnowflakeExecutor {
   ): Promise<AsyncIterableIterator<QueryRecord>> {
     const pool: Pool<Connection> = this.pool_;
     return await pool.acquire().then(async (conn: Connection) => {
-      await this._setSessionParams(conn);
-
       return new Promise((resolve, reject) => {
         conn.execute({
           sqlText,
