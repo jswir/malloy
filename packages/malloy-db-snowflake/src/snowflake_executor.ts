@@ -28,7 +28,6 @@ import type {
   ConnectionOptions,
 } from 'snowflake-sdk';
 import snowflake from 'snowflake-sdk';
-import {createPool} from 'generic-pool';
 import type {Pool, Options as PoolOptions} from 'generic-pool';
 import * as toml from 'toml';
 import * as fs from 'fs';
@@ -74,33 +73,16 @@ export class SnowflakeExecutor {
 
   private pool_: Pool<Connection>;
   private setupSQL: string | undefined;
+
+  private sessionInitialized = new WeakMap<Connection, Promise<void>>();
+
   constructor(
     connOptions: ConnectionOptions,
     poolOptions?: PoolOptions,
     setupSQL?: string
   ) {
     this.setupSQL = setupSQL;
-    const factory = {
-      create: async (): Promise<Connection> => {
-        const conn = await new Promise<Connection>((resolve, reject) => {
-          const c = snowflake.createConnection(connOptions);
-          c.connect(err => {
-            if (err) reject(err);
-            else resolve(c);
-          });
-        });
-        await this._setSessionParams(conn);
-        return conn;
-      },
-      destroy: async (conn: Connection): Promise<void> => {
-        await new Promise<void>(resolve => conn.destroy(() => resolve()));
-      },
-      validate: (conn: Connection): Promise<boolean> => {
-        return Promise.resolve(conn.isUp());
-      },
-    };
-
-    this.pool_ = createPool(factory, {
+    this.pool_ = snowflake.createPool(connOptions, {
       ...SnowflakeExecutor.defaultPoolOptions_,
       ...(poolOptions ?? {}),
     });
@@ -215,6 +197,7 @@ export class SnowflakeExecutor {
   }
 
   private async _setSessionParams(conn: Connection) {
+    // set some default session parameters
     // ensure we do not ignore case for quoted identifiers
     await this._execute(
       'ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;',
@@ -239,12 +222,26 @@ export class SnowflakeExecutor {
     }
   }
 
+  private ensureSessionInitialized(connection: Connection): Promise<void> {
+    const existing = this.sessionInitialized.get(connection);
+    if (existing) {
+      return existing;
+    }
+    const init = this._setSessionParams(connection).catch(err => {
+      this.sessionInitialized.delete(connection);
+      throw err;
+    });
+    this.sessionInitialized.set(connection, init);
+    return init;
+  }
+
   public async batch(
     sqlText: string,
     options?: RunSQLOptions,
     timeoutMs?: number
   ): Promise<QueryData> {
     return await this.pool_.use(async (conn: Connection) => {
+      await this.ensureSessionInitialized(conn);
       return await this._execute(sqlText, conn, options, timeoutMs);
     });
   }
@@ -255,6 +252,8 @@ export class SnowflakeExecutor {
   ): Promise<AsyncIterableIterator<QueryRecord>> {
     const pool: Pool<Connection> = this.pool_;
     return await pool.acquire().then(async (conn: Connection) => {
+      await this.ensureSessionInitialized(conn);
+
       return new Promise((resolve, reject) => {
         conn.execute({
           sqlText,
