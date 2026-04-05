@@ -188,8 +188,10 @@ export class SnowflakeExecutor {
           }
           if (err) {
             reject(err);
-          } else if (rows) {
-            resolve(rows);
+          } else {
+            // Snowflake occasionally calls complete with no rows (e.g. DDL); without this branch
+            // the Promise never settles and generic-pool holds the connection forever.
+            resolve(rows ?? []);
           }
         },
       });
@@ -252,7 +254,20 @@ export class SnowflakeExecutor {
   ): Promise<AsyncIterableIterator<QueryRecord>> {
     const pool: Pool<Connection> = this.pool_;
     return await pool.acquire().then(async (conn: Connection) => {
-      await this.ensureSessionInitialized(conn);
+      let released = false;
+      const releaseOnce = () => {
+        if (!released) {
+          released = true;
+          void pool.release(conn);
+        }
+      };
+
+      try {
+        await this.ensureSessionInitialized(conn);
+      } catch (initErr) {
+        releaseOnce();
+        throw initErr;
+      }
 
       return new Promise((resolve, reject) => {
         conn.execute({
@@ -260,7 +275,9 @@ export class SnowflakeExecutor {
           streamResult: true,
           complete: (err: SnowflakeError | undefined, stmt: RowStatement) => {
             if (err) {
+              releaseOnce();
               reject(err);
+              return;
             }
 
             const stream: Readable = stmt.streamRows();
@@ -269,9 +286,14 @@ export class SnowflakeExecutor {
               onData: (data: QueryRecord) => void,
               onEnd: () => void
             ) {
+              let streamEnded = false;
               function handleEnd() {
+                if (streamEnded) {
+                  return;
+                }
+                streamEnded = true;
                 onEnd();
-                pool.release(conn);
+                releaseOnce();
               }
 
               let index = 0;
@@ -282,10 +304,13 @@ export class SnowflakeExecutor {
                   options?.rowLimit !== undefined &&
                   index >= options.rowLimit
                 ) {
-                  onEnd();
+                  handleEnd();
                 }
               }
-              stream.on('error', onError);
+              stream.on('error', streamErr => {
+                releaseOnce();
+                onError(streamErr);
+              });
               stream.on('data', handleData);
               stream.on('end', handleEnd);
             }
