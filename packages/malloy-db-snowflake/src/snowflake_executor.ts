@@ -270,15 +270,12 @@ export class SnowflakeExecutor {
       }
 
       return new Promise((resolve, reject) => {
-        const statementRef: {current: RowStatement | undefined} = {
-          current: undefined,
-        };
         const cancel = () => {
-          statementRef.current?.cancel();
+          statement?.cancel();
         };
         options?.abortSignal?.addEventListener('abort', cancel);
 
-        statementRef.current = conn.execute({
+        const statement = conn.execute({
           sqlText,
           streamResult: true,
           complete: (err: SnowflakeError | undefined, stmt: RowStatement) => {
@@ -296,20 +293,22 @@ export class SnowflakeExecutor {
               onEnd: () => void
             ) {
               let streamEnded = false;
-              function handleEnd() {
+              function handleEnd(cancelled = false) {
                 if (streamEnded) {
                   return;
                 }
                 streamEnded = true;
                 options?.abortSignal?.removeEventListener('abort', onAbort);
                 stream.destroy();
-                stmt.cancel();
+                if (cancelled) {
+                  stmt.cancel();
+                }
                 onEnd();
                 releaseOnce();
               }
 
               function onAbort() {
-                handleEnd();
+                handleEnd(true);
               }
 
               options?.abortSignal?.addEventListener('abort', onAbort);
@@ -325,7 +324,7 @@ export class SnowflakeExecutor {
                   options?.rowLimit !== undefined &&
                   index >= options.rowLimit
                 ) {
-                  handleEnd();
+                  handleEnd(true);
                 }
               }
               stream.on('error', streamErr => {
