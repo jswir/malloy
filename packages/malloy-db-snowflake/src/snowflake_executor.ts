@@ -258,7 +258,7 @@ export class SnowflakeExecutor {
       const releaseOnce = () => {
         if (!released) {
           released = true;
-          void pool.release(conn);
+          pool.release(conn).catch(() => {});
         }
       };
 
@@ -270,11 +270,20 @@ export class SnowflakeExecutor {
       }
 
       return new Promise((resolve, reject) => {
-        conn.execute({
+        const statementRef: {current: RowStatement | undefined} = {
+          current: undefined,
+        };
+        const cancel = () => {
+          statementRef.current?.cancel();
+        };
+        options?.abortSignal?.addEventListener('abort', cancel);
+
+        statementRef.current = conn.execute({
           sqlText,
           streamResult: true,
           complete: (err: SnowflakeError | undefined, stmt: RowStatement) => {
             if (err) {
+              options?.abortSignal?.removeEventListener('abort', cancel);
               releaseOnce();
               reject(err);
               return;
@@ -292,12 +301,24 @@ export class SnowflakeExecutor {
                   return;
                 }
                 streamEnded = true;
+                options?.abortSignal?.removeEventListener('abort', onAbort);
+                stream.destroy();
+                stmt.cancel();
                 onEnd();
                 releaseOnce();
               }
 
+              function onAbort() {
+                handleEnd();
+              }
+
+              options?.abortSignal?.addEventListener('abort', onAbort);
+
               let index = 0;
               function handleData(this: Readable, row: QueryRecord) {
+                if (streamEnded) {
+                  return;
+                }
                 onData(row);
                 index += 1;
                 if (
@@ -308,12 +329,20 @@ export class SnowflakeExecutor {
                 }
               }
               stream.on('error', streamErr => {
+                if (streamEnded) {
+                  return;
+                }
+                streamEnded = true;
+                options?.abortSignal?.removeEventListener('abort', onAbort);
+                stream.destroy();
                 releaseOnce();
                 onError(streamErr);
               });
               stream.on('data', handleData);
               stream.on('end', handleEnd);
             }
+            // Remove the pre-stream abort listener; streamSnowflake installs its own.
+            options?.abortSignal?.removeEventListener('abort', cancel);
             return resolve(toAsyncGenerator<QueryRecord>(streamSnowflake));
           },
         });
