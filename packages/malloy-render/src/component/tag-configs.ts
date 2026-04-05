@@ -347,36 +347,16 @@ export function resolveBuiltInTags(field: Field): void {
   const renderAs = field.renderAs();
   const tag = field.tag;
 
-  // Cross-cutting: resolve label and subtitle for all fields
+  // Cross-cutting: resolve label for all fields
   const customLabel = tag.text('label');
   if (customLabel !== undefined) {
     field.setResolvedLabel(customLabel);
-  }
-
-  const subtitle = tag.text('subtitle');
-  if (subtitle !== undefined) {
-    field.setResolvedSubtitle(subtitle);
   }
 
   // Cross-cutting: resolve column config for all fields
   const columnConfig = resolveColumnTags(field);
   if (columnConfig) {
     field.setColumnConfig(columnConfig);
-  }
-
-  // Cross-cutting: resolve dashboard child-item properties at setup time
-  // so the dashboard component never reads tags at render time.
-  const spanVal = tag.numeric('span');
-  if (spanVal !== undefined) {
-    field.setResolvedSpan(spanVal);
-  }
-
-  if (tag.has('break')) {
-    field.setResolvedBreak(true);
-  }
-
-  if (tag.has('borderless')) {
-    field.setResolvedBorderless(true);
   }
 
   // Touch size.height which is read by chart-layout-settings
@@ -405,6 +385,27 @@ export function resolveBuiltInTags(field: Field): void {
       break;
     case 'dashboard':
       field.setTagConfig(resolveDashboardTags(field));
+      // Resolve dashboard-owned child tags at setup time so the
+      // dashboard component never reads tags at render time.
+      if (field.isNest()) {
+        for (const child of field.fields) {
+          const childTag = child.tag;
+          const spanVal = childTag.numeric('span');
+          if (spanVal !== undefined) {
+            child.setResolvedSpan(spanVal);
+          }
+          const subtitle = childTag.text('subtitle');
+          if (subtitle !== undefined) {
+            child.setResolvedSubtitle(subtitle);
+          }
+          if (childTag.has('break')) {
+            child.setResolvedBreak(true);
+          }
+          if (childTag.has('borderless')) {
+            child.setResolvedBorderless(true);
+          }
+        }
+      }
       break;
   }
 }

@@ -446,19 +446,7 @@ export class RenderFieldMetadata {
       }
     }
 
-    // --- Dashboard item tags ---
-
-    const spanVal = tag.numeric('span');
-    if (spanVal !== undefined) {
-      if (!Number.isInteger(spanVal) || spanVal < 1 || spanVal > 12) {
-        log.error(
-          `Invalid # span on '${field.name}': expected an integer 1–12, got ${spanVal}. Fix: # span=6.`,
-          tag.tag('span')
-        );
-      }
-    }
-
-    // --- Dashboard view-level tags ---
+    // --- Dashboard tags (view-level + child item validation) ---
 
     if (tag.has('dashboard') && field.isNest()) {
       const dashboardTag = tag.tag('dashboard');
@@ -470,15 +458,6 @@ export class RenderFieldMetadata {
             dashboardTag?.tag('columns')
           );
         }
-        // Warn if children use # span inside a columns-mode dashboard
-        for (const child of field.fields) {
-          if (child.tag.numeric('span') !== undefined) {
-            log.warn(
-              `Invalid # span on '${child.name}': span is ignored when parent dashboard '${field.name}' uses columns mode. Fix: remove # span or remove dashboard.columns.`,
-              child.tag.tag('span')
-            );
-          }
-        }
       }
       const gapVal = dashboardTag?.numeric('gap');
       if (gapVal !== undefined && gapVal < 0) {
@@ -486,6 +465,25 @@ export class RenderFieldMetadata {
           `Invalid # dashboard.gap on '${field.name}': expected a non-negative number, got ${gapVal}. Fix: # dashboard { gap=16 } (or gap=0 for no spacing).`,
           dashboardTag?.tag('gap')
         );
+      }
+
+      // Validate dashboard-owned child tags
+      for (const child of field.fields) {
+        const childSpan = child.tag.numeric('span');
+        if (childSpan !== undefined) {
+          if (!Number.isInteger(childSpan) || childSpan < 1 || childSpan > 12) {
+            log.error(
+              `Invalid # span on '${child.name}': expected an integer 1–12, got ${childSpan}. Fix: # span=6.`,
+              child.tag.tag('span')
+            );
+          }
+          if (columnsVal !== undefined) {
+            log.warn(
+              `Invalid # span on '${child.name}': span is ignored when parent dashboard '${field.name}' uses columns mode. Fix: remove # span or remove dashboard.columns.`,
+              child.tag.tag('span')
+            );
+          }
+        }
       }
     }
 

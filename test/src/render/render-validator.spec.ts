@@ -476,6 +476,27 @@ describe('render tag validation', () => {
       expectNoWarnings(logs);
     });
 
+    it('no warnings for # span, # subtitle, # borderless on dashboard child fields', async () => {
+      const logs = await getValidationLogs(`
+        source: s is duckdb.sql("SELECT 1 as a, 2 as b, 3 as c") extend {
+          # dashboard
+          view: q is {
+            group_by: grp is 'all'
+            aggregate:
+              # span=6
+              # subtitle="Total A"
+              a_total is a.sum()
+              # borderless
+              b_total is b.sum()
+              c_total is c.sum()
+          }
+        }
+        query: q is s -> q
+      `);
+      expectNoErrors(logs);
+      expectNoWarnings(logs);
+    });
+
     it('no warnings for # tooltip on chart child fields', async () => {
       const logs = await getValidationLogs(`
         source: s is duckdb.sql("SELECT 'A' as category, 1 as value, 'hello' as note") extend {
@@ -543,6 +564,22 @@ describe('render tag validation', () => {
       const warnings = logs.filter(l => l.severity === 'warn');
       expect(warnings.length).toBeGreaterThan(0);
       expect(warnings.some(w => w.message.includes('break'))).toBe(true);
+    });
+
+    it('warns on # span outside dashboard context', async () => {
+      const logs = await getValidationLogs(`
+        source: s is duckdb.sql("SELECT 1 as a") extend {
+          view: q is {
+            aggregate:
+              # span=6
+              a_total is a.sum()
+          }
+        }
+        query: q is s -> q
+      `);
+      const warnings = logs.filter(l => l.severity === 'warn');
+      expect(warnings.length).toBeGreaterThan(0);
+      expect(warnings.some(w => w.message.includes('span'))).toBe(true);
     });
 
     it('warns on # tooltip outside chart context', async () => {

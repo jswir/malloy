@@ -9,7 +9,7 @@ const BUILT_IN_RENDERER_VALIDATION_SPECS: Record<
 > = {
   dashboard: {
     renderer: 'dashboard',
-    childOwnedPaths: [['break']],
+    childOwnedPaths: [['break'], ['span'], ['subtitle'], ['borderless']],
   },
 };
 
