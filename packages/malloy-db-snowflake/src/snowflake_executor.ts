@@ -188,8 +188,10 @@ export class SnowflakeExecutor {
           }
           if (err) {
             reject(err);
-          } else if (rows) {
-            resolve(rows);
+          } else {
+            // Snowflake occasionally calls complete with no rows (e.g. DDL); without this branch
+            // the Promise never settles and generic-pool holds the connection forever.
+            resolve(rows ?? []);
           }
         },
       });
@@ -252,15 +254,36 @@ export class SnowflakeExecutor {
   ): Promise<AsyncIterableIterator<QueryRecord>> {
     const pool: Pool<Connection> = this.pool_;
     return await pool.acquire().then(async (conn: Connection) => {
-      await this.ensureSessionInitialized(conn);
+      let released = false;
+      const releaseOnce = () => {
+        if (!released) {
+          released = true;
+          pool.release(conn).catch(() => {});
+        }
+      };
+
+      try {
+        await this.ensureSessionInitialized(conn);
+      } catch (initErr) {
+        releaseOnce();
+        throw initErr;
+      }
 
       return new Promise((resolve, reject) => {
-        conn.execute({
+        const cancel = () => {
+          statement?.cancel();
+        };
+        options?.abortSignal?.addEventListener('abort', cancel);
+
+        const statement = conn.execute({
           sqlText,
           streamResult: true,
           complete: (err: SnowflakeError | undefined, stmt: RowStatement) => {
             if (err) {
+              options?.abortSignal?.removeEventListener('abort', cancel);
+              releaseOnce();
               reject(err);
+              return;
             }
 
             const stream: Readable = stmt.streamRows();
@@ -269,26 +292,56 @@ export class SnowflakeExecutor {
               onData: (data: QueryRecord) => void,
               onEnd: () => void
             ) {
-              function handleEnd() {
+              let streamEnded = false;
+              function handleEnd(cancelled = false) {
+                if (streamEnded) {
+                  return;
+                }
+                streamEnded = true;
+                options?.abortSignal?.removeEventListener('abort', onAbort);
+                if (cancelled) {
+                  stmt.cancel();
+                }
+                stream.destroy();
                 onEnd();
-                pool.release(conn);
+                releaseOnce();
               }
+
+              function onAbort() {
+                handleEnd(true);
+              }
+
+              options?.abortSignal?.addEventListener('abort', onAbort);
 
               let index = 0;
               function handleData(this: Readable, row: QueryRecord) {
+                if (streamEnded) {
+                  return;
+                }
                 onData(row);
                 index += 1;
                 if (
                   options?.rowLimit !== undefined &&
                   index >= options.rowLimit
                 ) {
-                  onEnd();
+                  handleEnd(true);
                 }
               }
-              stream.on('error', onError);
+              stream.on('error', streamErr => {
+                if (streamEnded) {
+                  return;
+                }
+                streamEnded = true;
+                options?.abortSignal?.removeEventListener('abort', onAbort);
+                stream.destroy();
+                releaseOnce();
+                onError(streamErr);
+              });
               stream.on('data', handleData);
               stream.on('end', handleEnd);
             }
+            // Remove the pre-stream abort listener; streamSnowflake installs its own.
+            options?.abortSignal?.removeEventListener('abort', cancel);
             return resolve(toAsyncGenerator<QueryRecord>(streamSnowflake));
           },
         });

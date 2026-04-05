@@ -226,6 +226,7 @@ export class SnowflakeConnection
   extends BaseConnection
   implements
     Connection,
+    PooledConnection,
     PersistSQLResults,
     StreamingConnection,
     TestableConnection
@@ -303,8 +304,12 @@ export class SnowflakeConnection
     return {};
   }
 
-  async close(): Promise<void> {
+  public async drain(): Promise<void> {
     await this.executor.done();
+  }
+
+  async close(): Promise<void> {
+    await this.drain();
   }
 
   private getTempViewName(sqlCommand: string): string {
@@ -447,7 +452,7 @@ export class SnowflakeConnection
     };
     // create temp table with same schema as the query
     const tempTableName = this.getTempViewName(sqlRef.selectStr);
-    this.runSQL(
+    await this.runSQL(
       `CREATE OR REPLACE TEMP VIEW ${tempTableName} AS (${sqlRef.selectStr});`
     );
 
