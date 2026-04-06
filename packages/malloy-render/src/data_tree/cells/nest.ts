@@ -105,7 +105,13 @@ export class RecordCell extends CellBase {
     super(cell, field, parent);
     for (let i = 0; i < field.fields.length; i++) {
       const childField = field.fields[i];
-      const childCell = Cell.from(cell.record_value[i], childField, this);
+      const cellData = cell.record_value[i];
+      if (cellData === undefined) {
+        throw new Error(
+          `Schema/data mismatch: field '${childField.name}' (index ${i}) has no corresponding data value. Schema has ${field.fields.length} fields but record has ${cell.record_value.length} values.`
+        );
+      }
+      const childCell = Cell.from(cellData, childField, this);
       this.cells[childField.name] = childCell;
     }
   }
@@ -119,7 +125,13 @@ export class RecordCell extends CellBase {
   }
 
   column(name: string): Cell {
-    return this.cells[name];
+    const cell = this.cells[name];
+    if (cell === undefined) {
+      throw new Error(
+        `No cell found for field '${name}' in record '${this.field.name}'. Available cells: [${Object.keys(this.cells).join(', ')}]`
+      );
+    }
+    return cell;
   }
 
   get columns(): Cell[] {
