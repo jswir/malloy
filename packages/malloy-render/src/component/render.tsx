@@ -147,8 +147,12 @@ export function MalloyRenderInner(props: {
   // This is where chart rendering happens for now
   // If size in fill mode, easiest thing would be to just recalculate entire thing
   // This is expensive but we can optimize later to make size responsive
+  // Evaluate eagerly outside createMemo so errors propagate directly
+  // to the ErrorBoundary during component construction, rather than
+  // being swallowed by Solid's reactive system.
+  const initialTree = getDataTree(props.result, props.renderFieldMetadata);
   const rootCell = createMemo(() => {
-    return getDataTree(props.result, props.renderFieldMetadata);
+    return initialTree;
   });
 
   const metadata = createMemo(() => {
