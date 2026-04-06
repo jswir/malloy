@@ -20,7 +20,6 @@ function DashboardItem(props: {
   row: RecordCell;
   maxTableHeight: number | null;
   isMeasure?: boolean;
-  spanOverride?: number;
 }) {
   const config = useConfig();
   const shouldVirtualizeTable = () => {
@@ -62,12 +61,6 @@ function DashboardItem(props: {
   const title = props.field.getLabel();
   const subtitle = props.field.getSubtitle();
 
-  const gridColumnStyle: Record<string, string> = {};
-  if (props.spanOverride) {
-    gridColumnStyle['grid-column'] = `span ${props.spanOverride}`;
-  }
-  const dataSpan = props.spanOverride;
-
   return (
     <div
       class="dashboard-item"
@@ -76,8 +69,6 @@ function DashboardItem(props: {
         'dashboard-item-borderless': props.field.isBorderless(),
       }}
       onClick={config.onClick ? handleClick : undefined}
-      style={gridColumnStyle}
-      data-span={dataSpan}
     >
       <div class="dashboard-item-header">
         <div class="dashboard-item-title">{title}</div>
@@ -112,6 +103,7 @@ export function Dashboard(props: {
     dashConfig !== undefined ? dashConfig.maxTableHeight : 361;
   const columns = dashConfig?.columns;
   const gap = dashConfig?.gap;
+  const gapPx = gap ?? 16;
 
   const dashboardStyle = () => {
     const style: Record<string, string> = {};
@@ -125,19 +117,22 @@ export function Dashboard(props: {
       f =>
         !f.isHidden() &&
         !(f.isBasic() && f.wasDimension()) &&
-        f.getSpan() !== undefined
+        (f.getSpan() !== undefined || f.hasBreak())
     );
   })();
 
-  const getRowBodyStyle = () => {
-    if (!useGrid) return {};
-    if (columns !== undefined) return {'grid-template-columns': `repeat(${columns}, 1fr)`};
-    return {'grid-template-columns': 'repeat(12, 1fr)'};
+  const getColumnsStyle = () => {
+    if (columns === undefined) return {};
+    return {'grid-template-columns': `repeat(${columns}, 1fr)`};
   };
 
-  const getItemSpan = (f: Field): number | undefined => {
-    if (!useGrid) return undefined;
-    if (columns !== undefined) return undefined;
+  // Minimum container width for columns mode: 120px per column + gaps
+  const columnsMinWidth = columns !== undefined
+    ? columns * 120 + (columns - 1) * gapPx
+    : 0;
+
+  // Compute the effective span for a field
+  const computeSpan = (f: Field): number => {
     const explicit = f.getSpan();
     if (explicit !== undefined) return explicit;
     if (f.isBasic() && f.wasCalculation()) return 3;
@@ -153,6 +148,56 @@ export function Dashboard(props: {
       return 12;
     }
     return 6;
+  };
+
+  // Compute per-row grid config from the items' spans
+  const getRowConfig = (group: Field[]) => {
+    const spans = group.map(f => computeSpan(f));
+    const totalSpan = spans.reduce((a, b) => a + b, 0);
+
+    // Fractional template preserves proportions.
+    // When totalSpan < 12, use percentage caps so items don't stretch to fill.
+    const frTemplate = totalSpan >= 12
+      ? spans.map(s => `${s}fr`).join(' ')
+      : spans.map(s => `minmax(0, ${((s / 12) * 100).toFixed(1)}%)`).join(' ');
+
+    // Minimum width per item based on content type
+    const minWidths = group.map(f => {
+      if (f.isBasic() && f.wasCalculation()) return 120;
+      return 200;
+    });
+    const minRowWidth = minWidths.reduce((a, b) => a + b, 0)
+      + (group.length - 1) * gapPx;
+
+    const collapseClass = minRowWidth <= 400 ? 'row-collapse-sm'
+      : minRowWidth <= 600 ? 'row-collapse-md'
+      : 'row-collapse-lg';
+
+    return {frTemplate, collapseClass};
+  };
+
+  const getRowStyle = (group: Field[]) => {
+    if (!useGrid) return {};
+    if (columns !== undefined) return getColumnsStyle();
+    return {'grid-template-columns': getRowConfig(group).frTemplate};
+  };
+
+  const getRowClassList = (group: Field[]) => {
+    const classes: Record<string, boolean> = {
+      'dashboard-grid': useGrid,
+      'dashboard-columns': columns !== undefined,
+    };
+    if (useGrid && columns === undefined) {
+      classes[getRowConfig(group).collapseClass] = true;
+    }
+    if (columns !== undefined) {
+      // Bucket the columns collapse threshold
+      const cls = columnsMinWidth <= 400 ? 'row-collapse-sm'
+        : columnsMinWidth <= 600 ? 'row-collapse-md'
+        : 'row-collapse-lg';
+      classes[cls] = true;
+    }
+    return classes;
   };
 
   const dimensions = () =>
@@ -258,8 +303,8 @@ export function Dashboard(props: {
                     {group => (
                       <div
                         class="dashboard-row-body"
-                        classList={{'dashboard-grid': useGrid}}
-                        style={getRowBodyStyle()}
+                        classList={getRowClassList(group)}
+                        style={getRowStyle(group)}
                       >
                         <For each={group}>
                           {field => (
@@ -268,7 +313,6 @@ export function Dashboard(props: {
                               row={props.data.rows[virtualRow.index]}
                               isMeasure={field.wasCalculation()}
                               maxTableHeight={maxTableHeight}
-                              spanOverride={getItemSpan(field)}
                             />
                           )}
                         </For>
@@ -310,8 +354,8 @@ export function Dashboard(props: {
                 {group => (
                   <div
                     class="dashboard-row-body"
-                    classList={{'dashboard-grid': useGrid}}
-                    style={getRowBodyStyle()}
+                    classList={getRowClassList(group)}
+                    style={getRowStyle(group)}
                   >
                     <For each={group}>
                       {field => (
@@ -320,7 +364,6 @@ export function Dashboard(props: {
                           row={row}
                           isMeasure={field.wasCalculation()}
                           maxTableHeight={maxTableHeight}
-                          spanOverride={getItemSpan(field)}
                         />
                       )}
                     </For>

@@ -43,7 +43,6 @@
 
   .dashboard-row-body.dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(12, 1fr);
   }
 
   /* Card styling for charts and tables */
@@ -68,6 +67,7 @@
     width: auto;
     height: auto;
     min-width: 0;
+    overflow: hidden;
   }
 
   .dashboard-item:hover {
@@ -97,6 +97,9 @@
     font-size: var(--malloy-render--dashboard-title-size, 13px);
     text-transform: uppercase;
     letter-spacing: 0.025em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .dashboard-item-measure .dashboard-item-subtitle {
@@ -161,11 +164,13 @@
     min-height: 1.1em;
     text-align: center;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     color: var(--malloy-render--dashboard-value-color, #111827);
   }
 
   .dashboard-grid .dashboard-item-value-measure {
-    font-size: min(var(--malloy-render--dashboard-value-size, 32px), 11cqi);
+    font-size: clamp(12px, 10cqi, var(--malloy-render--dashboard-value-size, 32px));
   }
 
   .dashboard-dimension-wrapper {
@@ -238,14 +243,18 @@
   }
 }
 
-/* Responsive: collapse grid items on narrow containers (flex mode wraps naturally) */
-@container (max-width: 600px) {
-  .malloy-dashboard .dashboard-grid {
+/* Responsive: per-row collapse based on content-aware size classes.
+   Each row independently collapses to single column when the container
+   is too narrow for its items. Columns mode is not affected. */
+@container (max-width: 400px) {
+  .malloy-dashboard .row-collapse-sm {
     grid-template-columns: 1fr !important;
   }
+}
 
-  .malloy-dashboard .dashboard-grid .dashboard-item {
-    grid-column: span 1 !important;
+@container (max-width: 600px) {
+  .malloy-dashboard .row-collapse-md {
+    grid-template-columns: 1fr !important;
   }
 
   .malloy-dashboard .dashboard-item-value-measure {
@@ -253,16 +262,9 @@
   }
 }
 
-@container (min-width: 601px) and (max-width: 900px) {
-  .malloy-dashboard .dashboard-grid {
-    grid-template-columns: repeat(6, 1fr) !important;
-  }
-
-  .malloy-dashboard .dashboard-grid .dashboard-item[data-span='8'],
-  .malloy-dashboard .dashboard-grid .dashboard-item[data-span='9'],
-  .malloy-dashboard .dashboard-grid .dashboard-item[data-span='10'],
-  .malloy-dashboard .dashboard-grid .dashboard-item[data-span='11'],
-  .malloy-dashboard .dashboard-grid .dashboard-item[data-span='12'] {
-    grid-column: 1 / -1 !important;
+@container (max-width: 900px) {
+  .malloy-dashboard .row-collapse-lg {
+    grid-template-columns: 1fr !important;
   }
 }
+

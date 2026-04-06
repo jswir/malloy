@@ -1,11 +1,203 @@
 source: products is duckdb.table("static/data/products.parquet") extend {
 
   // ============================================
+  // Shared measures and views for legacy stories
+  // ============================================
+
+  measure:
+    product_count is count()
+    total_retail is retail_price.sum()
+    avg_cost is cost.avg()
+    percent_of_products is count() / all(count()) * 100
+
+  view: by_brand is {
+    group_by: brand
+    aggregate:
+      product_count
+      total_retail
+      percent_of_products
+  }
+
+  view: by_department is {
+    group_by: department
+    aggregate:
+      product_count
+      percent_of_products
+  }
+
+  view: by_category is {
+    group_by: category
+    aggregate: product_count
+    order_by: category
+  }
+
+  view: recent_products is {
+    group_by:
+      name
+      brand
+      category
+      department
+      retail_price
+    order_by: retail_price desc
+    limit: 10
+  }
+
+  // ============================================
+  // FLEX STORIES — no span/columns/gap/break tags
+  // ============================================
+
+  // ============================================
+  // Basic dashboard: KPIs in cards (default) + table
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_flex is {
+    group_by:
+      category
+    # currency
+    aggregate:
+      avg_retail is retail_price.avg()
+      sum_retail is retail_price.sum()
+    nest:
+      by_brand is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 10
+      }
+  }
+
+  // ============================================
+  // Borderless KPIs: opt out of card styling
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_borderless_kpis_flex is {
+    group_by:
+      category
+    # currency
+    aggregate:
+      # borderless
+      avg_retail is retail_price.avg()
+      # borderless
+      sum_retail is retail_price.sum()
+      # borderless
+      max_retail is retail_price.max()
+    nest:
+      by_brand is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 10
+      }
+  }
+
+  // ============================================
+  // Dense KPIs: many measures in cards + custom labels
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_dense_flex is {
+    group_by:
+      category
+    # currency
+    aggregate:
+      avg_retail is retail_price.avg()
+      # label='Custom kpi label'
+      sum_retail is retail_price.sum()
+      avg_retail2 is retail_price.avg()
+      avg_retail3 is retail_price.avg()
+      avg_retail4 is retail_price.avg()
+      avg_retail5 is retail_price.avg()
+      avg_retail6 is retail_price.avg()
+      avg_retail7 is retail_price.avg()
+    nest:
+      # label='Custom item label'
+      by_brand is {
+        group_by: brand
+        aggregate:
+          avg_retail is retail_price.avg()
+          avg_retail2 is retail_price.avg()
+          avg_retail3 is retail_price.avg()
+          avg_retail4 is retail_price.avg()
+          avg_retail5 is retail_price.avg()
+          avg_retail6 is retail_price.avg()
+          avg_retail7 is retail_price.avg()
+        limit: 10
+      }
+  }
+
+  // ============================================
+  // Legacy dashboard: no new annotations at all.
+  // Mimics real-world dashboards (e.g. malloy-samples/auto_recalls)
+  // with a mix of KPI measures, charts, and tables.
+  // Should look reasonable with zero configuration.
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_legacy_flex is by_brand + {
+    # line_chart
+    nest: by_category_trend is {
+      group_by: category
+      aggregate: product_count
+    }
+    nest: by_department
+    nest: recent_products
+  }
+
+  // Same legacy structure but more measures
+  #(story)
+  # dashboard
+  view: dashboard_legacy_dense_flex is {
+    group_by: brand
+    # currency
+    aggregate:
+      product_count
+      total_retail
+      avg_cost
+      percent_of_products
+    nest:
+      # bar_chart
+      by_department_chart is by_department
+      by_category
+      recent_products + { limit: 6 }
+  }
+
+  // ============================================
+  // Table with nested charts inside a dashboard
+  // Should auto-detect sub-nests and get span 12
+  // ============================================
+  #(story)
+  # dashboard
+  view: dashboard_table_with_nested_charts_flex is {
+    group_by: category
+    aggregate:
+      product_count
+      total_retail
+    nest:
+      brand_detail is {
+        group_by: brand
+        aggregate:
+          product_count
+          total_retail
+        nest:
+          # bar_chart
+          by_department is {
+            group_by: department
+            aggregate: product_count
+          }
+        limit: 10
+      }
+  }
+
+  // ============================================
+  // GRID STORIES — use span/columns/gap/break tags
+  // ============================================
+
+  // ============================================
   // Column count: force 3 equal columns
   // ============================================
   #(story)
   # dashboard { columns = 3 }
-  view: dashboard_columns_3 is {
+  view: dashboard_columns_3_grid is {
     group_by:
       category
     # currency
@@ -20,7 +212,7 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   // ============================================
   #(story)
   # dashboard { columns = 2 }
-  view: dashboard_columns_2 is {
+  view: dashboard_columns_2_grid is {
     group_by:
       category
     # currency
@@ -42,7 +234,7 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   // ============================================
   #(story)
   # dashboard
-  view: dashboard_span_8_4 is {
+  view: dashboard_span_8_4_grid is {
     group_by:
       category
     aggregate:
@@ -63,7 +255,7 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   // ============================================
   #(story)
   # dashboard
-  view: dashboard_span_equal_thirds is {
+  view: dashboard_span_equal_thirds_grid is {
     group_by:
       category
     # currency
@@ -82,7 +274,7 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   // ============================================
   #(story)
   # dashboard
-  view: dashboard_span_mixed is {
+  view: dashboard_span_mixed_grid is {
     group_by:
       category
     # currency
@@ -105,7 +297,7 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   // ============================================
   #(story)
   # dashboard
-  view: dashboard_with_charts is {
+  view: dashboard_with_charts_grid is {
     group_by:
       category
     # currency
@@ -138,7 +330,7 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   // ============================================
   #(story)
   # dashboard { columns = 2 }
-  view: dashboard_charts_and_table is {
+  view: dashboard_charts_and_table_grid is {
     group_by:
       category
     nest:
@@ -162,7 +354,7 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   // ============================================
   #(story)
   # dashboard
-  view: dashboard_full_layout is {
+  view: dashboard_full_layout_grid is {
     group_by:
       category
     # currency
@@ -197,7 +389,7 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   // ============================================
   #(story)
   # dashboard
-  view: dashboard_blank_spans is {
+  view: dashboard_blank_spans_grid is {
     group_by:
       category
     # currency
@@ -213,7 +405,7 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   // ============================================
   #(story)
   # dashboard
-  view: dashboard_with_sparklines is {
+  view: dashboard_with_sparklines_grid is {
     group_by:
       category
     nest:
@@ -272,90 +464,11 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   }
 
   // ============================================
-  // Basic dashboard: KPIs in cards (default) + table
-  // ============================================
-  #(story)
-  # dashboard
-  view: dashboard is {
-    group_by:
-      category
-    # currency
-    aggregate:
-      avg_retail is retail_price.avg()
-      sum_retail is retail_price.sum()
-    nest:
-      by_brand is {
-        group_by: brand
-        aggregate: avg_retail is retail_price.avg()
-        limit: 10
-      }
-  }
-
-  // ============================================
-  // Borderless KPIs: opt out of card styling
-  // ============================================
-  #(story)
-  # dashboard
-  view: dashboard_borderless_kpis is {
-    group_by:
-      category
-    # currency
-    aggregate:
-      # borderless
-      avg_retail is retail_price.avg()
-      # borderless
-      sum_retail is retail_price.sum()
-      # borderless
-      max_retail is retail_price.max()
-    nest:
-      by_brand is {
-        group_by: brand
-        aggregate: avg_retail is retail_price.avg()
-        limit: 10
-      }
-  }
-
-  // ============================================
-  // Dense KPIs: many measures in cards + custom labels
-  // ============================================
-  #(story)
-  # dashboard
-  view: dashboard_dense is {
-    group_by:
-      category
-    # currency
-    aggregate:
-      avg_retail is retail_price.avg()
-      # label='Custom kpi label'
-      sum_retail is retail_price.sum()
-      avg_retail2 is retail_price.avg()
-      avg_retail3 is retail_price.avg()
-      avg_retail4 is retail_price.avg()
-      avg_retail5 is retail_price.avg()
-      avg_retail6 is retail_price.avg()
-      avg_retail7 is retail_price.avg()
-    nest:
-      # label='Custom item label'
-      by_brand is {
-        group_by: brand
-        aggregate:
-          avg_retail is retail_price.avg()
-          avg_retail2 is retail_price.avg()
-          avg_retail3 is retail_price.avg()
-          avg_retail4 is retail_price.avg()
-          avg_retail5 is retail_price.avg()
-          avg_retail6 is retail_price.avg()
-          avg_retail7 is retail_price.avg()
-        limit: 10
-      }
-  }
-
-  // ============================================
   // Row break: KPIs then table on new row
   // ============================================
   #(story)
   # dashboard
-  view: dashboard_with_break is {
+  view: dashboard_with_break_grid is {
     group_by:
       category
     # currency
@@ -376,7 +489,43 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   // ============================================
   #(story)
   # dashboard { gap = 24 }
-  view: dashboard_custom_gap is {
+  view: dashboard_custom_gap_grid is {
+    group_by:
+      category
+    # currency
+    aggregate:
+      # span = 4
+      avg_retail is retail_price.avg()
+      # span = 4
+      sum_retail is retail_price.sum()
+      # span = 4
+      max_retail is retail_price.max()
+    nest:
+      # break
+      # span = 6
+      # bar_chart
+      by_brand_bar is {
+        group_by: brand
+        aggregate: avg_retail is retail_price.avg()
+        limit: 8
+      }
+      # span = 6
+      by_brand_table is {
+        group_by: brand
+        aggregate:
+          avg_retail is retail_price.avg()
+          product_count is count()
+        limit: 8
+      }
+  }
+
+  // ============================================
+  // Gap = 0: items should be flush with no spacing.
+  // Verifies that gap=0 is not ignored by falsy checks.
+  // ============================================
+  #(story)
+  # dashboard { gap = 0 }
+  view: dashboard_gap_zero_grid is {
     group_by:
       category
     # currency
@@ -411,7 +560,7 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   // ============================================
   #(story)
   # dashboard
-  view: dashboard_ux_mockup is {
+  view: dashboard_ux_mockup_grid is {
     group_by:
       category
     nest:
@@ -448,7 +597,7 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   // ============================================
   #(story)
   # dashboard
-  view: dashboard_tall_chart is {
+  view: dashboard_tall_chart_grid is {
     group_by:
       category
     # currency
@@ -477,7 +626,7 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   // ============================================
   #(story)
   # dashboard
-  view: dashboard_lg_chart_narrow_span is {
+  view: dashboard_lg_chart_narrow_span_grid is {
     group_by:
       category
     nest:
@@ -505,7 +654,7 @@ source: products is duckdb.table("static/data/products.parquet") extend {
   // ============================================
   #(story)
   # dashboard
-  view: dashboard_mixed_span_defaults is {
+  view: dashboard_mixed_span_defaults_grid is {
     group_by:
       category
     # currency
@@ -525,144 +674,6 @@ source: products is duckdb.table("static/data/products.parquet") extend {
         group_by: department
         aggregate: avg_retail is retail_price.avg()
         limit: 5
-      }
-  }
-
-  // ============================================
-  // Legacy dashboard: no new annotations at all.
-  // Mimics real-world dashboards (e.g. malloy-samples/auto_recalls)
-  // with a mix of KPI measures, charts, and tables.
-  // Should look reasonable with zero configuration.
-  // ============================================
-
-  measure:
-    product_count is count()
-    total_retail is retail_price.sum()
-    avg_cost is cost.avg()
-    percent_of_products is count() / all(count()) * 100
-
-  view: by_brand is {
-    group_by: brand
-    aggregate:
-      product_count
-      total_retail
-      percent_of_products
-  }
-
-  view: by_department is {
-    group_by: department
-    aggregate:
-      product_count
-      percent_of_products
-  }
-
-  view: by_category is {
-    group_by: category
-    aggregate: product_count
-    order_by: category
-  }
-
-  view: recent_products is {
-    group_by:
-      name
-      brand
-      category
-      department
-      retail_price
-    order_by: retail_price desc
-    limit: 10
-  }
-
-  #(story)
-  # dashboard
-  view: dashboard_legacy is by_brand + {
-    # line_chart
-    nest: by_category_trend is {
-      group_by: category
-      aggregate: product_count
-    }
-    nest: by_department
-    nest: recent_products
-  }
-
-  // Same legacy structure but more measures
-  #(story)
-  # dashboard
-  view: dashboard_legacy_dense is {
-    group_by: brand
-    # currency
-    aggregate:
-      product_count
-      total_retail
-      avg_cost
-      percent_of_products
-    nest:
-      # bar_chart
-      by_department_chart is by_department
-      by_category
-      recent_products + { limit: 6 }
-  }
-
-  // ============================================
-  // Gap = 0: items should be flush with no spacing.
-  // Verifies that gap=0 is not ignored by falsy checks.
-  // ============================================
-  #(story)
-  # dashboard { gap = 0 }
-  view: dashboard_gap_zero is {
-    group_by:
-      category
-    # currency
-    aggregate:
-      # span = 4
-      avg_retail is retail_price.avg()
-      # span = 4
-      sum_retail is retail_price.sum()
-      # span = 4
-      max_retail is retail_price.max()
-    nest:
-      # break
-      # span = 6
-      # bar_chart
-      by_brand_bar is {
-        group_by: brand
-        aggregate: avg_retail is retail_price.avg()
-        limit: 8
-      }
-      # span = 6
-      by_brand_table is {
-        group_by: brand
-        aggregate:
-          avg_retail is retail_price.avg()
-          product_count is count()
-        limit: 8
-      }
-  }
-
-  // ============================================
-  // Table with nested charts inside a dashboard
-  // Should auto-detect sub-nests and get span 12
-  // ============================================
-  #(story)
-  # dashboard
-  view: dashboard_table_with_nested_charts is {
-    group_by: category
-    aggregate:
-      product_count
-      total_retail
-    nest:
-      brand_detail is {
-        group_by: brand
-        aggregate:
-          product_count
-          total_retail
-        nest:
-          # bar_chart
-          by_department is {
-            group_by: department
-            aggregate: product_count
-          }
-        limit: 10
       }
   }
 }
