@@ -1,0 +1,404 @@
+##(story) component='EChart Plugins'
+
+source: products is duckdb.table("static/data/products.parquet") extend {
+
+  -- Pie Chart
+  #(story)
+  # echart_pie
+  view: echart_pie_basic is {
+    group_by: category
+    aggregate: product_count is count()
+  }
+
+  #(story) story='Pie Donut'
+  # echart_pie { mode=donut }
+  view: echart_pie_donut is {
+    group_by: category
+    aggregate: product_count is count()
+  }
+
+  #(story) story='Pie Rose'
+  # echart_pie { mode=rose }
+  view: echart_pie_rose is {
+    group_by: category
+    aggregate: product_count is count()
+  }
+
+  -- Funnel Chart
+  #(story)
+  # echart_funnel
+  view: echart_funnel_basic is {
+    group_by: category
+    aggregate: product_count is count()
+    limit: 6
+  }
+
+  -- Radar Chart
+  #(story)
+  # echart_radar
+  view: echart_radar_basic is {
+    group_by: category
+    aggregate:
+      product_count is count()
+      avg_price is retail_price.avg()
+      max_price is retail_price.max()
+    limit: 5
+  }
+
+  -- Heatmap Chart
+  #(story)
+  # echart_heatmap
+  view: echart_heatmap_basic is {
+    group_by:
+      category
+      department
+    aggregate: product_count is count()
+  }
+
+  -- Treemap Chart
+  #(story)
+  # echart_treemap
+  view: echart_treemap_basic is {
+    group_by: category
+    aggregate: product_count is count()
+  }
+
+  -- Treemap Nested (Malloy nesting synergy)
+  #(story) story='Treemap Nested'
+  # echart_treemap
+  view: echart_treemap_nested is {
+    group_by: department
+    aggregate: product_count is count()
+    nest: by_category is {
+      group_by: category
+      aggregate: product_count is count()
+    }
+  }
+
+  -- Sunburst Chart
+  #(story)
+  # echart_sunburst
+  view: echart_sunburst_basic is {
+    group_by: department
+    aggregate: product_count is count()
+    nest: by_category is {
+      group_by: category
+      aggregate: product_count is count()
+    }
+  }
+
+  -- Tree Chart
+  #(story)
+  # echart_tree
+  view: echart_tree_basic is {
+    group_by: department
+    aggregate: product_count is count()
+    nest: by_category is {
+      group_by: category
+      aggregate: product_count is count()
+    }
+  }
+
+  -- Boxplot Chart
+  #(story)
+  # echart_boxplot
+  view: echart_boxplot_basic is {
+    group_by: category
+    aggregate:
+      min_price is retail_price.min()
+      q1_price is retail_price.avg() * 0.75
+      median_price is retail_price.avg()
+      q3_price is retail_price.avg() * 1.25
+      max_price is retail_price.max()
+  }
+
+  -- Parallel Chart
+  #(story)
+  # echart_parallel
+  view: echart_parallel_basic is {
+    group_by:
+      category
+      department
+    aggregate:
+      product_count is count()
+      avg_price is retail_price.avg()
+    limit: 20
+  }
+
+  -- Word Cloud
+  #(story)
+  # echart_wordcloud
+  view: echart_wordcloud_basic is {
+    group_by: brand
+    aggregate: product_count is count()
+    limit: 50
+  }
+
+  -- Waterfall Chart
+  #(story)
+  # echart_waterfall { show_total=true }
+  view: echart_waterfall_basic is {
+    group_by: category
+    aggregate: revenue is retail_price.sum()
+    limit: 8
+  }
+
+  -- Bar Charts
+  #(story)
+  # echart_bar
+  view: echart_bar_basic is {
+    group_by: category
+    aggregate: product_count is count()
+  }
+
+  #(story) story='Bar Stacked'
+  # echart_bar { stack }
+  view: echart_bar_stacked is {
+    group_by: category, department
+    aggregate: product_count is count()
+  }
+
+  #(story) story='Bar Horizontal'
+  # echart_bar { orient=horizontal }
+  view: echart_bar_horizontal is {
+    group_by: category
+    aggregate: product_count is count()
+  }
+
+  #(story) story='Bar Horizontal Stacked'
+  # echart_bar { orient=horizontal stack }
+  view: echart_bar_horizontal_stacked is {
+    group_by: category, department
+    aggregate: product_count is count()
+  }
+
+  -- Line Charts
+  #(story)
+  # echart_line
+  view: echart_line_basic is {
+    group_by: category
+    aggregate: avg_price is retail_price.avg()
+  }
+
+  #(story) story='Line Area'
+  # echart_line { area }
+  view: echart_line_area is {
+    group_by: category
+    aggregate: avg_price is retail_price.avg()
+  }
+
+  #(story) story='Line Stacked Area'
+  # echart_line { area stack }
+  view: echart_line_stacked_area is {
+    group_by: category, department
+    aggregate: avg_price is retail_price.avg()
+  }
+
+  #(story) story='Line Smooth'
+  # echart_line { smooth }
+  view: echart_line_smooth is {
+    group_by: category
+    aggregate: avg_price is retail_price.avg()
+  }
+
+  -- Dashboard with ECharts
+  #(story) story='Dashboard with ECharts'
+  # dashboard
+  view: echart_dashboard is {
+    # echart_pie { mode=donut }
+    nest: category_split is {
+      group_by: category
+      aggregate: product_count is count()
+    }
+    # echart_funnel
+    nest: funnel is {
+      group_by: department
+      aggregate: product_count is count()
+      limit: 5
+    }
+    # echart_bar
+    nest: bar_chart is {
+      group_by: category
+      aggregate: product_count is count()
+    }
+    # echart_line { area }
+    nest: line_chart is {
+      group_by: category
+      aggregate: avg_price is retail_price.avg()
+    }
+  }
+}
+
+source: calendar_data is duckdb.sql("""
+  SELECT * FROM (
+    SELECT
+      DATE '2024-01-01' + INTERVAL (i) DAY AS event_date,
+      CAST(abs(hash(i) % 50) + 1 AS INTEGER) AS event_count
+    FROM generate_series(0, 364) AS t(i)
+  )
+""") extend {
+
+  #(story)
+  # echart_calendar
+  view: echart_calendar_basic is {
+    group_by: event_date
+    aggregate: total_events is event_count.sum()
+  }
+}
+
+source: sankey_data is duckdb.sql("""
+  SELECT * FROM (VALUES
+    ('Marketing', 'Website', 1000),
+    ('Marketing', 'Email', 500),
+    ('Marketing', 'Social', 300),
+    ('Website', 'Signup', 400),
+    ('Website', 'Browse', 600),
+    ('Email', 'Signup', 200),
+    ('Email', 'Browse', 300),
+    ('Social', 'Signup', 100),
+    ('Social', 'Browse', 200),
+    ('Signup', 'Purchase', 350),
+    ('Browse', 'Purchase', 500)
+  ) AS t(source_node, target_node, flow_value)
+""") extend {
+
+  #(story)
+  # echart_sankey
+  view: echart_sankey_basic is {
+    group_by: source_node, target_node
+    aggregate: total_flow is flow_value.sum()
+  }
+}
+
+source: graph_data is duckdb.sql("""
+  SELECT * FROM (VALUES
+    ('Alice', 'Bob', 5),
+    ('Alice', 'Charlie', 3),
+    ('Bob', 'Diana', 4),
+    ('Charlie', 'Diana', 2),
+    ('Diana', 'Eve', 6),
+    ('Bob', 'Eve', 1),
+    ('Charlie', 'Frank', 3),
+    ('Frank', 'Eve', 2)
+  ) AS t(person_a, person_b, strength)
+""") extend {
+
+  #(story)
+  # echart_graph
+  view: echart_graph_basic is {
+    group_by: person_a, person_b
+    aggregate: connection_strength is strength.sum()
+  }
+}
+
+source: gauge_data is duckdb.sql("""
+  SELECT 73.5 as completion_rate
+""") extend {
+
+  #(story)
+  # echart_gauge { min=0 max=100 }
+  view: echart_gauge_basic is {
+    aggregate: rate is completion_rate.avg()
+  }
+}
+
+source: ohlc_data is duckdb.sql("""
+  SELECT * FROM (VALUES
+    ('2024-01-02', 150.0, 155.0, 148.0, 153.0),
+    ('2024-01-03', 153.0, 158.0, 151.0, 156.0),
+    ('2024-01-04', 156.0, 160.0, 154.0, 159.0),
+    ('2024-01-05', 159.0, 162.0, 155.0, 157.0),
+    ('2024-01-08', 157.0, 163.0, 156.0, 162.0),
+    ('2024-01-09', 162.0, 165.0, 160.0, 161.0),
+    ('2024-01-10', 161.0, 164.0, 158.0, 163.0),
+    ('2024-01-11', 163.0, 168.0, 161.0, 167.0),
+    ('2024-01-12', 167.0, 170.0, 164.0, 166.0),
+    ('2024-01-15', 166.0, 169.0, 163.0, 168.0)
+  ) AS t(trade_date, open_price, high_price, low_price, close_price)
+""") extend {
+
+  #(story)
+  # echart_candlestick
+  view: echart_candlestick_basic is {
+    group_by: trade_date
+    aggregate:
+      open_val is open_price.avg()
+      close_val is close_price.avg()
+      low_val is low_price.avg()
+      high_val is high_price.avg()
+  }
+}
+
+source: river_data is duckdb.sql("""
+  SELECT * FROM (VALUES
+    ('2024-01', 'Desktop', 120),
+    ('2024-01', 'Mobile', 80),
+    ('2024-01', 'Tablet', 30),
+    ('2024-02', 'Desktop', 130),
+    ('2024-02', 'Mobile', 95),
+    ('2024-02', 'Tablet', 35),
+    ('2024-03', 'Desktop', 125),
+    ('2024-03', 'Mobile', 110),
+    ('2024-03', 'Tablet', 40),
+    ('2024-04', 'Desktop', 115),
+    ('2024-04', 'Mobile', 130),
+    ('2024-04', 'Tablet', 45),
+    ('2024-05', 'Desktop', 110),
+    ('2024-05', 'Mobile', 145),
+    ('2024-05', 'Tablet', 50),
+    ('2024-06', 'Desktop', 105),
+    ('2024-06', 'Mobile', 160),
+    ('2024-06', 'Tablet', 55)
+  ) AS t(month_str, device_type, visit_count)
+""") extend {
+
+  #(story)
+  # echart_river
+  view: echart_river_basic is {
+    group_by: month_str, device_type
+    aggregate: visits is visit_count.sum()
+  }
+}
+
+source: mekko_data is duckdb.sql("""
+  SELECT * FROM (VALUES
+    ('US', 'Enterprise', 800),
+    ('US', 'Mid-Market', 500),
+    ('US', 'SMB', 300),
+    ('Europe', 'Enterprise', 600),
+    ('Europe', 'Mid-Market', 400),
+    ('Europe', 'SMB', 350),
+    ('APAC', 'Enterprise', 400),
+    ('APAC', 'Mid-Market', 300),
+    ('APAC', 'SMB', 500),
+    ('LATAM', 'Enterprise', 150),
+    ('LATAM', 'Mid-Market', 200),
+    ('LATAM', 'SMB', 250)
+  ) AS t(market, segment, revenue)
+""") extend {
+
+  #(story)
+  # echart_mekko
+  view: echart_mekko_basic is {
+    group_by: market, segment
+    aggregate: total_revenue is revenue.sum()
+  }
+
+  #(story) story='Mekko Percent Labels'
+  # echart_mekko { labels=percent }
+  view: echart_mekko_percent is {
+    group_by: market, segment
+    aggregate: total_revenue is revenue.sum()
+  }
+
+  #(story) story='Mekko Nested'
+  # echart_mekko
+  view: echart_mekko_nested is {
+    group_by: market
+    aggregate: total_revenue is revenue.sum()
+    nest: breakdown is {
+      group_by: segment
+      aggregate: seg_revenue is revenue.sum()
+    }
+  }
+}

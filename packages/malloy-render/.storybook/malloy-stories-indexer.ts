@@ -144,6 +144,7 @@ export function viteMalloyStoriesPlugin(): PluginOption {
           import {MalloyRenderer} from '../api/malloy-renderer';
           import {DummyPluginFactory} from '@/plugins/dummy-plugin';
           import {DummyDOMPluginFactory} from '@/plugins/dummy-dom-plugin';
+          import {echartsPlugins} from '@/echarts-index';
           import {addons} from '@storybook/preview-api';
 
           const RENDERER_LOGS_EVENT = 'malloy/renderer-logs/logs';
@@ -170,6 +171,7 @@ export function viteMalloyStoriesPlugin(): PluginOption {
                 plugins: [
                   DummyPluginFactory,
                   DummyDOMPluginFactory,
+                  ...echartsPlugins,
                 ],
                 onDrill: console.log,
                 tableConfig: {

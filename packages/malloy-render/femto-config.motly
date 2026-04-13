@@ -8,6 +8,7 @@ build: {
   ]
   outputs = ["dist/module/index.mjs"]
   commands = [
-    "npx vite build --outDir 'dist/module' --config vite.config.mts"
+    "npx vite build --outDir 'dist/module' --config vite.config.mts",
+    "VITE_ENTRY=echarts npx vite build --outDir 'dist/module' --config vite.config.mts"
   ]
 }

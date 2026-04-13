@@ -72,3 +72,7 @@ packages/malloy-tag/src/.antlr
 packages/malloy-tag/src/lib
 
 @flowtyped
+
+# Auto-managed by the Credible extension
+/malloy-config.json
+.cursor/mcp.json
