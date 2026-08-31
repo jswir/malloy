@@ -855,6 +855,28 @@ describe('Malloy to Stable Query', () => {
       });
     });
   });
+  describe('calculate / avg_moving', () => {
+    test('basic avg_moving', () => {
+      idempotent(
+        'run: flights -> { calculate: flight_count_smoothed is avg_moving(flight_count, 7, 0) }',
+      );
+    });
+
+    test('avg_moving with partition_by', () => {
+      idempotent(
+        'run: flights -> { group_by: carrier; calculate: flight_count_7d is avg_moving(flight_count, 7, 0) { partition_by: carrier } }',
+      );
+    });
+
+    test('rejects other calculate functions', () => {
+      const result = malloyToQuery(
+        'run: flights -> { calculate: prev is lag(flight_count) }',
+      );
+      expect(result.query).toBeUndefined();
+      expect(result.logs.length).toBeGreaterThan(0);
+    });
+  });
+
   describe('Render annotations', () => {
     test('single render annotation', () => {
       idempotent('# bar_chart\nrun: flights -> { group_by: carrier }', {

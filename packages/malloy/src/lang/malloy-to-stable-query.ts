@@ -16,7 +16,7 @@ import type {
   MessageParameterType,
 } from './parse-log';
 import {BaseMessageLogger, makeLogMessage} from './parse-log';
-import {getAnnotationText, getId, getPlainString} from './parse-utils';
+import {getAnnotationText, getId, getPlainString, idToStr} from './parse-utils';
 import type {DocumentLocation} from '../model/malloy_types';
 import {isTimestampUnit, isTimeLiteral} from '../model/malloy_types';
 import {runMalloyParser} from './run-malloy-parser';
@@ -496,7 +496,8 @@ export class MalloyToQuery
     } else if (cx.indexStatement()) {
       this.notAllowed(cx, 'Index statements');
     } else if (cx.calculateStatement()) {
-      this.notAllowed(cx, 'Calculate statements');
+      const calcx = cx.calculateStatement()!;
+      return this.getCalculateStatement(calcx);
     } else if (cx.topStatement()) {
       this.notAllowed(cx, 'Top statements');
     } else if (cx.orderByStatement()) {
@@ -558,6 +559,85 @@ export class MalloyToQuery
     }
     this.illegal(cx, `Invalid timeframe ${text}`);
     return null;
+  }
+
+  protected getCalculateStatement(calcx: parse.CalculateStatementContext) {
+    const groupAnnotations = this.getAnnotations(calcx.tags());
+    const fieldCxs = calcx.queryFieldList().queryFieldEntry();
+    const fields = fieldCxs.map(f => this.getQueryField(f));
+    if (fields.some(o => o === null)) {
+      return null;
+    }
+    const ops: Malloy.ViewOperationWithCalculate[] = [];
+    for (const f of fields as {name?: string; field: Malloy.Field}[]) {
+      const annotations = [
+        ...(groupAnnotations ?? []),
+        ...(f.field.annotations ?? []),
+      ];
+      if (f.field.expression.kind !== 'moving_average') {
+        this.notAllowed(
+          calcx,
+          'Calculate expressions other than avg_moving(...)',
+        );
+        return null;
+      }
+      ops.push({
+        kind: 'calculate',
+        name: f.name ?? `${f.field.expression.field_reference.name}_smoothed`,
+        field: {
+          ...f.field,
+          annotations: annotations.length > 0 ? annotations : undefined,
+        },
+      });
+    }
+    return ops;
+  }
+
+  protected getMovingAverage(
+    cx: parse.ExprFuncContext
+  ): Malloy.ExpressionWithMovingAverage | null {
+    const id = cx.id();
+    if (!id || idToStr(id) !== 'avg_moving') {
+      return null;
+    }
+    const args = cx.argumentList()?.fieldExpr() ?? [];
+    if (args.length < 1 || args.length > 3) {
+      this.illegal(cx, 'avg_moving expects a field and optional window sizes');
+      return null;
+    }
+    const fieldExpr = this.getFieldExpression(args[0]);
+    if (fieldExpr === null || fieldExpr.kind !== 'field_reference') {
+      this.illegal(args[0], 'avg_moving first argument must be a field');
+      return null;
+    }
+    let rows_preceding: number | undefined;
+    let rows_following: number | undefined;
+    if (args[1]) {
+      const preceding = this.getLiteralIncludingNegativeNumber(args[1]);
+      if (preceding === null || preceding.kind !== 'number_literal') {
+        this.illegal(args[1], 'avg_moving window sizes must be numbers');
+        return null;
+      }
+      rows_preceding = preceding.number_value;
+    }
+    if (args[2]) {
+      const following = this.getLiteralIncludingNegativeNumber(args[2]);
+      if (following === null || following.kind !== 'number_literal') {
+        this.illegal(args[2], 'avg_moving window sizes must be numbers');
+        return null;
+      }
+      rows_following = following.number_value;
+    }
+    return {
+      kind: 'moving_average',
+      field_reference: {
+        name: fieldExpr.name,
+        path: fieldExpr.path,
+        parameters: fieldExpr.parameters,
+      },
+      rows_preceding,
+      rows_following,
+    };
   }
 
   protected getQueryField(
@@ -662,6 +742,26 @@ export class MalloyToQuery
       if (expr === null) {
         return null;
       }
+      const props = cx.fieldProperties().fieldPropertyStatement();
+      if (expr.kind === 'moving_average') {
+        const partition_fields: Malloy.Reference[] = [];
+        for (const prop of props) {
+          const partCx = prop.partitionByStatement();
+          if (partCx) {
+            for (const id of partCx.id()) {
+              partition_fields.push({name: idToStr(id)});
+            }
+          } else if (prop.whereStatement()) {
+            this.notAllowed(prop, 'Where on avg_moving');
+            return null;
+          }
+        }
+        return {
+          ...expr,
+          partition_fields:
+            partition_fields.length > 0 ? partition_fields : expr.partition_fields,
+        };
+      }
       if (expr.kind !== 'field_reference') {
         this.illegal(
           exprCx,
@@ -669,7 +769,6 @@ export class MalloyToQuery
         );
         return null;
       }
-      const props = cx.fieldProperties().fieldPropertyStatement();
       const where: Malloy.FilterOperation[] = [];
       for (const prop of props) {
         const whereCx = prop.whereStatement();
@@ -688,6 +787,11 @@ export class MalloyToQuery
         },
         where,
       };
+    } else if (cx instanceof parse.ExprFuncContext) {
+      const moving = this.getMovingAverage(cx);
+      if (moving) return moving;
+      this.notAllowed(cx, 'Function calls other than avg_moving(...)');
+      return null;
     } else {
       const literal = this.getLiteralIncludingNegativeNumber(cx);
       if (literal === null) return null;
